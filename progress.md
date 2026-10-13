@@ -95,3 +95,4 @@ Testing cancelled because the build failed.
   - 12-hanime-categories: native scrollable option list has full labels and visible focus/checkmark.
 - Fixed the observed layout/focus defects and reran all four affected paths successfully. No remaining blocking visual defect in these screenshots. Real iwara account login still requires the user.
 - Normal development installation is performed from the committed code by script/install-device.sh; it embeds ShelfCommit and build number. Its receipt/log and final metadata are under ignored artifacts/, so no credential identifiers or screenshot files enter git.
+- Normal signed installation succeeded after the UI fixes. Metadata verification found Xcode omitted an arbitrary INFOPLIST_KEY custom field; added an explicit Info.plist mapping for SHELF_COMMIT before final reinstallation. No runtime/UI code changed in this metadata-only follow-up.

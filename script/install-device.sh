@@ -14,7 +14,7 @@ xcodebuild -project Shelf.xcodeproj -scheme Shelf -configuration Debug \
   -sdk appletvos -destination "platform=tvOS,id=$device" \
   -derivedDataPath artifacts/DerivedDataDevice \
   -allowProvisioningUpdates -allowProvisioningDeviceRegistration \
-  "${auth_args[@]}" "INFOPLIST_KEY_ShelfCommit=$revision" \
+  "${auth_args[@]}" "SHELF_COMMIT=$revision" \
   "CURRENT_PROJECT_VERSION=$build_number" build
 xcrun devicectl device install app --device "$device" \
   artifacts/DerivedDataDevice/Build/Products/Debug-appletvos/Shelf.app

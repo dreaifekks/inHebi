@@ -60,7 +60,7 @@ struct VideoBrowser: View {
                     ForEach(pager.items) { video in
                         NavigationLink { VideoDetail(source: source, id: video.id) } label: {
                             MediaCard(title: video.title, subtitle: video.author, url: video.thumbnail, portrait: video.isPortrait)
-                        }.buttonStyle(.card)
+                        }.buttonStyle(.card).accessibilityIdentifier("video.card")
                     }
                 }
                 LoadFooter(loading: pager.loading, error: pager.error, empty: pager.items.isEmpty, hasNext: pager.next != nil) {
@@ -104,7 +104,7 @@ struct AlbumBrowser: View {
                     ForEach(pager.items) { album in
                         NavigationLink { AlbumDetail(source: source, id: album.id) } label: {
                             MediaCard(title: album.title, subtitle: "", url: album.cover, portrait: true, referer: WnacgSource.base.absoluteString)
-                        }.buttonStyle(.card)
+                        }.buttonStyle(.card).accessibilityIdentifier("album.card")
                     }
                 }
                 LoadFooter(loading: pager.loading, error: pager.error, empty: pager.items.isEmpty, hasNext: pager.next != nil) { Task { await load() } }

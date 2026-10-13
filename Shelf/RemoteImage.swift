@@ -38,7 +38,7 @@ struct RemoteImage: View {
     var body: some View {
         ZStack {
             Color.white.opacity(0.04)
-            if let image { Image(uiImage: image).resizable().scaledToFit() }
+            if let image { Image(uiImage: image).resizable().scaledToFit().accessibilityIdentifier("image.loaded") }
             else if let error { VStack { Image(systemName: "photo.badge.exclamationmark"); Text(error).font(.caption).lineLimit(2) } }
             else if url != nil { ProgressView() }
             else { Image(systemName: "photo").foregroundStyle(.secondary) }

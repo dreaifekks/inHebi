@@ -27,6 +27,7 @@ struct ReaderView: View {
                 .contentShape(Rectangle())
                 .focusable()
                 .focused($focus, equals: .canvas)
+                .accessibilityIdentifier("reader.canvas")
                 .focusEffectDisabled()
                 .onTapGesture { controls = true; focus = .resume }
                 .onMoveCommand { direction in
@@ -35,13 +36,13 @@ struct ReaderView: View {
                     if direction == .down || direction == .up { controls = true; focus = .resume }
                 }
                 VStack(spacing: 22) {
-                    Text(pageLabel).font(.callout.monospacedDigit())
+                    Text(pageLabel).font(.callout.monospacedDigit()).accessibilityIdentifier("reader.page")
                         .padding(.horizontal, 18).padding(.vertical, 8).background(.black.opacity(0.7), in: Capsule())
                     if controls {
                         HStack(spacing: 28) {
                             Button("下一页 ←") { turn(forward: true) }.disabled(page + (spread ? 2 : 1) >= pages.count)
                             Button("上一页 →") { turn(forward: false) }.disabled(page == 0)
-                            Button(spread ? "切换单页" : "双页并排") { spread.toggle() }
+                            Button(spread ? "切换单页" : "双页并排") { spread.toggle() }.accessibilityIdentifier("reader.spread")
                             Button("重试图片") { reload += 1 }
                             Button("继续阅读") { controls = false; focus = .canvas }.focused($focus, equals: .resume)
                             Button("关闭") { dismiss() }

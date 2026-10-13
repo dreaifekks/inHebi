@@ -83,3 +83,30 @@ Generic 编译不需要 tvOS 模拟器运行时。本次未下载运行时、未
 ## 验证边界
 
 macOS 核心解析、分页、双页顺序、登录请求/刷新/退出的模拟传输测试，以及真实网络列表/详情/清晰度/视频字节范围/漫画首图和原生解码都可复现。没有用户账号，真实登录和权限内容未验证；没有 tvOS 运行时或配对设备，实际焦点流、画面布局、遥控器手感和 AVPlayer 解码播放须在 Apple TV 验收。现有工程未定制 App Icon/Top Shelf 素材。
+
+## Apple TV UI 测试
+
+`ShelfUITests` target 使用 `XCUIRemote.shared` 操作真实遥控器焦点，覆盖四个 Tab、iwara 详情、Hanime1 静音播放时间前进、漫画详情/翻页/双页、设置。选取实时列表首项，不绑定视频或相册 ID。测试结束（包括失败）退出 App。
+
+```sh
+./script/test-device.sh APPLE_TV_UDID
+# 只重跑受影响路径，例如：
+./script/test-device.sh APPLE_TV_UDID -only-testing:ShelfUITests/ShelfUITests/testComicReader
+```
+
+需要 Xcode Apple Accounts 已登录有权限的开发团队；脚本启用自动 provisioning/设备注册。结果保存到 `artifacts/device-ui-*.xcresult`；截图导出到 `artifacts/screenshots/`，含英文页面名及 `index.json`。`artifacts/` 已忽略。也可单独运行 `python3 script/export-screenshots.py RESULT.xcresult`。
+
+Debug App 同时带 `--ui-testing --mute-playback` 启动参数时静音，显示供测试读取的实际 AVPlayer 状态和播放时间；正常启动不静音、不显示测试状态。Release 不启用测试参数。
+
+真机测试完成、截图检查和提交之后，构建并留下正常签名 App：
+
+```sh
+xcodebuild -project Shelf.xcodeproj -scheme Shelf -configuration Debug \
+  -sdk appletvos -destination 'platform=tvOS,id=APPLE_TV_UDID' \
+  -derivedDataPath DerivedData -allowProvisioningUpdates \
+  -allowProvisioningDeviceRegistration build
+xcrun devicectl device install app --device APPLE_TV_UDID \
+  DerivedData/Build/Products/Debug-appletvos/Shelf.app
+```
+
+截至本次准备工作，UI 测试包已通过 generic SDK `build-for-testing`；真机测试仍被 Xcode `No Accounts` / 缺少 provisioning profile 阻塞，尚未取得任何实机路径或截图验收结果。

@@ -50,3 +50,26 @@ Implementation complete. No subagent sessions, no simulator runtime installation
 - Hanime1 live evidence: list 59, page 2 59 with different first ID, portrait category 41, filtered MMD search 59; detail qualities 1080p/720p/480p; best stream HTTP 206, 1,024 bytes; thumbnail 65,027 bytes. iwara and wnacg live tests also passed unchanged.
 - After removing an unnecessary `try` warning, `./script/verify.sh` at 03:00 JST passed: 17 tests total, 3 opt-in live tests skipped, 0 failures; generic build succeeded, no Swift compiler warnings. Only the pre-existing AppIntents metadata-skip message remains.
 - Hanime1 fixtures scanned: no unredacted secure URL parameters or CSRF fields; no downloaded media saved. Runtime TV UI/remote/playback remains unverified because this session has no tvOS runtime/device.
+
+## Physical Apple TV validation — blocked on Xcode account
+
+- Device dreaifeのApple TV, UDID <Apple TV 设备标识>, reachable/connected. Existing configured team ALZ45VUZFN retained (confirmed from Apple Development certificate OU in v1).
+- Added ShelfUITests target, four remote-driven test paths, keepAlways named screenshot attachments, teardown termination, test-only muted AVPlayer clock/state observation and artifact export scripts.
+- `xcodebuild ... -sdk appletvsimulator -destination 'generic/platform=tvOS Simulator' CODE_SIGNING_ALLOWED=NO build-for-testing`: TEST BUILD SUCCEEDED. No Swift compiler warnings after removing actor-isolation warnings in test lifecycle. This compiles tests; it does not execute them.
+- Initial signed device build and `./script/test-device.sh <Apple TV 设备标识>` both stopped before installation/test execution, exit 65.
+- Logs: artifacts/device-signing-build.log and artifacts/device-ui-test.log. xcresult: artifacts/device-ui-20261014-030544.xcresult.
+- Complete signing errors (no bypass attempted):
+
+```
+No Accounts: Add a new account in Accounts settings. (in target 'ShelfUITests' from project 'Shelf')
+No profiles for 'com.dreaife.shelf.uitests.xctrunner' were found: Xcode couldn't find any tvOS App Development provisioning profiles matching 'com.dreaife.shelf.uitests.xctrunner'. (in target 'ShelfUITests' from project 'Shelf')
+No Accounts: Add a new account in Accounts settings. (in target 'Shelf' from project 'Shelf')
+No profiles for 'com.dreaife.shelf' were found: Xcode couldn't find any tvOS App Development provisioning profiles matching 'com.dreaife.shelf'. (in target 'Shelf' from project 'Shelf')
+Testing cancelled because the build failed.
+```
+
+- User action requested: sign into the ALZ45VUZFN developer account in Xcode → Settings → Apple Accounts. Certificate/private-key presence alone does not provide portal account access for profile creation.
+- All actual TV paths, exported screenshots/visual review and normal signed installation remain pending. No runtime downloaded. UI navigation assumptions are not yet verified on TV.
+- `xcresulttool export attachments` succeeded with an empty manifest; artifacts/screenshots/index.json is `[]`, so no screenshots are claimed or visually reviewed.
+- `xcrun devicectl device info apps --device <Apple TV 设备标识> --bundle-id com.dreaife.shelf` returned no app. No Shelf build is installed on the TV by this task.
+- Prepared code is committed separately; device execution, visual fixes if any, and final signed installation must resume after account login.

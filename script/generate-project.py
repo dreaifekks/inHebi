@@ -33,15 +33,34 @@ for config in ['Debug','Release']:
 pc=add('projectConfigList','{isa = XCConfigurationList; buildConfigurations = %s; defaultConfigurationIsVisible = 0; defaultConfigurationName = Release;}'%array(projectConfigs))
 tc=add('targetConfigList','{isa = XCConfigurationList; buildConfigurations = %s; defaultConfigurationIsVisible = 0; defaultConfigurationName = Release;}'%array(targetConfigs))
 target=add('target','{isa = PBXNativeTarget; buildConfigurationList = %s; buildPhases = (%s,%s,%s,); buildRules = (); dependencies = (); name = Shelf; packageProductDependencies = (%s,); productName = Shelf; productReference = %s; productType = "com.apple.product-type.application";}'%(tc,sources,frameworks,resources,packageProduct,product))
+# UI test bundle and dependency on the application.
+uiRef=add('uiTestFile','{isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShelfUITests.swift; sourceTree = "<group>";}')
+uiGroup=add('uiTestGroup','{isa = PBXGroup; path = ShelfUITests; sourceTree = "<group>"; children = (%s,);}'%uiRef)
+objects[main]=objects[main].replace('children = (','children = (%s,'%uiGroup)
+uiProduct=add('uiProduct','{isa = PBXFileReference; explicitFileType = wrapper.cfbundle; path = ShelfUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR;}')
+objects[products]=objects[products].replace('children = (','children = (%s,'%uiProduct)
+uiBuild=add('uiBuild','{isa = PBXBuildFile; fileRef = %s;}'%uiRef)
+uiSources=add('uiSources','{isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (%s,); runOnlyForDeploymentPostprocessing = 0;}'%uiBuild)
+uiFrameworks=add('uiFrameworks','{isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0;}')
+uiConfigs=[]
+for config in ['Debug','Release']:
+    settings='CODE_SIGN_STYLE = Automatic; DEVELOPMENT_TEAM = ALZ45VUZFN; PRODUCT_BUNDLE_IDENTIFIER = com.dreaife.shelf.uitests; PRODUCT_NAME = "$(TARGET_NAME)"; GENERATE_INFOPLIST_FILE = YES; TARGETED_DEVICE_FAMILY = 3; TEST_TARGET_NAME = Shelf; SUPPORTED_PLATFORMS = "appletvos appletvsimulator"; LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @loader_path/Frameworks";'
+    uiConfigs.append(add('ui'+config,'{isa = XCBuildConfiguration; name = %s; buildSettings = {%s};}'%(config,settings)))
+uic=add('uiConfigList','{isa = XCConfigurationList; buildConfigurations = %s; defaultConfigurationIsVisible = 0; defaultConfigurationName = Release;}'%array(uiConfigs))
+proxy=add('uiProxy','{isa = PBXContainerItemProxy; containerPortal = %s; proxyType = 1; remoteGlobalIDString = %s; remoteInfo = Shelf;}'%(oid('project'),target))
+dep=add('uiDependency','{isa = PBXTargetDependency; target = %s; targetProxy = %s;}'%(target,proxy))
+uiTarget=add('uiTarget','{isa = PBXNativeTarget; buildConfigurationList = %s; buildPhases = (%s,%s,); buildRules = (); dependencies = (%s,); name = ShelfUITests; productName = ShelfUITests; productReference = %s; productType = "com.apple.product-type.bundle.ui-testing";}'%(uic,uiSources,uiFrameworks,dep,uiProduct))
 project=add('project','{isa = PBXProject; attributes = {BuildIndependentTargetsInParallel = YES; LastUpgradeCheck = 2700; TargetAttributes = {%s = {CreatedOnToolsVersion = 27.0; ProvisioningStyle = Automatic;};};}; buildConfigurationList = %s; compatibilityVersion = "Xcode 14.0"; developmentRegion = en; hasScannedForEncodings = 0; knownRegions = (en,Base,); mainGroup = %s; packageReferences = (%s,); productRefGroup = %s; projectDirPath = ""; projectRoot = ""; targets = (%s,);}'%(target,pc,main,package,products,target))
+objects[project]=objects[project].replace('targets = (','targets = (%s,'%uiTarget)
 p=root/'Shelf.xcodeproj';p.mkdir(exist_ok=True)
 (p/'project.pbxproj').write_text('// !$*UTF8*$!\n{archiveVersion = 1; classes = {}; objectVersion = 56; objects = {\n'+'\n'.join(k+' = '+v+';' for k,v in objects.items())+'\n}; rootObject = '+project+';\n}\n')
 s=p/'xcshareddata/xcschemes';s.mkdir(parents=True,exist_ok=True)
 ref=f'<BuildableReference BuildableIdentifier="primary" BlueprintIdentifier="{target}" BuildableName="Shelf.app" BlueprintName="Shelf" ReferencedContainer="container:Shelf.xcodeproj"/>'
+uiSchemeRef=f'<BuildableReference BuildableIdentifier="primary" BlueprintIdentifier="{uiTarget}" BuildableName="ShelfUITests.xctest" BlueprintName="ShelfUITests" ReferencedContainer="container:Shelf.xcodeproj"/>'
 (s/'Shelf.xcscheme').write_text(f'''<?xml version="1.0" encoding="UTF-8"?>
 <Scheme LastUpgradeVersion="2700" version="1.3">
 <BuildAction parallelizeBuildables="YES" buildImplicitDependencies="YES"><BuildActionEntries><BuildActionEntry buildForTesting="YES" buildForRunning="YES" buildForProfiling="YES" buildForArchiving="YES" buildForAnalyzing="YES">{ref}</BuildActionEntry></BuildActionEntries></BuildAction>
-<TestAction buildConfiguration="Debug" shouldUseLaunchSchemeArgsEnv="YES"/>
+<TestAction buildConfiguration="Debug" shouldUseLaunchSchemeArgsEnv="YES"><Testables><TestableReference skipped="NO" parallelizable="NO">{uiSchemeRef}</TestableReference></Testables></TestAction>
 <LaunchAction buildConfiguration="Debug" selectedDebuggerIdentifier="Xcode.DebuggerFoundation.Debugger.LLDB" selectedLauncherIdentifier="Xcode.IDEFoundation.Launcher.LLDB" launchStyle="0" useCustomWorkingDirectory="NO" ignoresPersistentStateOnLaunch="NO" debugDocumentVersioning="YES" allowLocationSimulation="YES"><BuildableProductRunnable runnableDebuggingMode="0">{ref}</BuildableProductRunnable></LaunchAction>
 <ProfileAction buildConfiguration="Release" shouldUseLaunchSchemeArgsEnv="YES" useCustomWorkingDirectory="NO" debugDocumentVersioning="YES"><BuildableProductRunnable runnableDebuggingMode="0">{ref}</BuildableProductRunnable></ProfileAction>
 <AnalyzeAction buildConfiguration="Debug"/><ArchiveAction buildConfiguration="Release" revealArchiveInOrganizer="YES"/>

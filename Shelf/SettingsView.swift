@@ -9,7 +9,7 @@ struct SettingsView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 30) {
-                Text("Shelf 设置").font(.largeTitle.bold())
+                Text("Shelf 设置").font(.largeTitle.bold()).accessibilityIdentifier("settings.title")
                 Text("iwara 账号").font(.title2)
                 if model.isLoggedIn {
                     Label("已登录 · 凭证保存在本机钥匙串", systemImage: "checkmark.circle.fill").foregroundStyle(.green)

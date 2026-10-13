@@ -1,0 +1,17 @@
+
+document.writeln("	<script type=\"text/javascript\">");
+document.writeln("		var sns_sys_id = '';");
+document.writeln("		var sns_view_point_token = '';");
+document.writeln("		var hash = window.location.hash;");
+document.writeln("		if(!hash){");
+document.writeln("			hash = 0;");
+document.writeln("		}else{");
+document.writeln("			hash = parseInt(hash.replace(\"#\",\"\")) - 1;");
+document.writeln("		}");
+document.writeln("		var fast_img_host=\"\";");
+document.writeln("		var imglist = [{ url: fast_img_host+\"//img5.qy0.ru/data/3956/52/0001.webp?verify=REDACTED\", caption: \"[0001]\"},{ url: fast_img_host+\"//img5.qy0.ru/data/3956/52/0002.webp?verify=REDACTED\", caption: \"[0002]\"},{ url: fast_img_host+\"//img5.qy0.ru/data/3956/52/0003.webp?verify=REDACTED\", caption: \"[0003]\"},{ url: fast_img_host+\"//img5.qy0.ru/data/3956/52/0004.webp?verify=REDACTED\", caption: \"[0004]\"},{ url: fast_img_host+\"//img5.qy0.ru/data/3956/52/0005.webp?verify=REDACTED\", caption: \"[0005]\"},{ url: fast_img_host+\"//img5.qy0.ru/data/3956/52/0006.webp?verify=REDACTED\", caption: \"[0006]\"},{ url: fast_img_host+\"//img5.qy0.ru/data/3956/52/0007.webp?verify=REDACTED\", caption: \"[0007]\"},{ url: fast_img_host+\"//img5.qy0.ru/data/3956/52/0008.webp?verify=REDACTED\", caption: \"[0008]\"},{ url: fast_img_host+\"//img5.qy0.ru/data/3956/52/0009.webp?verify=REDACTED\", caption: \"[0009]\"},{ url: fast_img_host+\"//img5.qy0.ru/data/3956/52/0010.webp?verify=REDACTED\", caption: \"[0010]\"},{ url: fast_img_host+\"//img5.qy0.ru/data/3956/52/0011.webp?verify=REDACTED\", caption: \"[0011]\"},{ url: fast_img_host+\"/themes/weitu/images/bg/shoucang.jpg\", caption: \"喜歡紳士漫畫的同學請加入收藏哦！\"}];");
+document.writeln("");
+document.writeln("		$(function(){");
+document.writeln("			imgscroll.beLoad($(\"#img_list\"),imglist,hash);");
+document.writeln("		});");
+document.writeln("	</script>");

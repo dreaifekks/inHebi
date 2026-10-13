@@ -1,0 +1,56 @@
+import XCTest
+import ImageIO
+@testable import ShelfCore
+
+@MainActor final class LiveTests: XCTestCase {
+    func enabled() throws { try XCTSkipUnless(ProcessInfo.processInfo.environment["SHELF_LIVE_TESTS"] == "1", "Set SHELF_LIVE_TESTS=1 to contact live sites") }
+    func testIwaraLive() async throws {
+        try enabled()
+        let source = IwaraSource()
+        let list = try await source.videos()
+        let first = try XCTUnwrap(list.items.first)
+        let detail = try await source.video(id: first.id)
+        XCTAssertEqual(detail.id, first.id)
+        let streams = try await source.streams(for: detail)
+        let best = try XCTUnwrap(streams.first)
+        var request = HTTPClient.request(best.url)
+        request.setValue("bytes=0-1023", forHTTPHeaderField: "Range")
+        // Streaming response avoids downloading an entire video if Range is ignored.
+        let (bytes, response) = try await URLSession.shared.bytes(for: request)
+        let code = try XCTUnwrap(response as? HTTPURLResponse).statusCode
+        XCTAssertTrue([200, 206].contains(code))
+        var received = 0
+        for try await _ in bytes { received += 1; if received == 1024 { break } }
+        XCTAssertGreaterThan(received, 0)
+        let thumbnail = try XCTUnwrap(detail.thumbnail)
+        let image = try await HTTPClient().data(thumbnail)
+        XCTAssertGreaterThan(image.count, 100)
+        print("LIVE iwara list=\(list.items.count), detail OK, qualities=\(streams.map(\.name)), video HTTP \(code), bytes=\(received), thumbnail bytes=\(image.count)")
+        let search = try await source.videos(query: "MMD")
+        print("LIVE iwara search=\(search.items.count)")
+    }
+    func testWnacgLive() async throws {
+        try enabled()
+        let source = WnacgSource()
+        let list = try await source.albums()
+        let first = try XCTUnwrap(list.items.first)
+        let detail = try await source.album(id: first.id)
+        let pages = try await source.pages(id: first.id)
+        let imageURL = try XCTUnwrap(pages.first)
+        let request = HTTPClient.request(imageURL, headers: ["Referer": "https://www.wnacg.com/photos-slide-aid-\(first.id).html"])
+        let (image, response) = try await URLSession.shared.data(for: request)
+        XCTAssertEqual((response as? HTTPURLResponse)?.statusCode, 200)
+        XCTAssertTrue((response.mimeType ?? "").hasPrefix("image/"))
+        XCTAssertGreaterThan(image.count, 1000)
+        let imageSource = try XCTUnwrap(CGImageSourceCreateWithData(image as CFData, nil))
+        XCTAssertNotNil(CGImageSourceCreateImageAtIndex(imageSource, 0, nil))
+        XCTAssertEqual(pages.count, detail.pageCount)
+        let categories = try await source.categories()
+        XCTAssertFalse(categories.isEmpty)
+        let category = try await source.albums(page: 2, category: "1")
+        XCTAssertFalse(category.items.isEmpty)
+        let search = try await source.albums(query: "original")
+        XCTAssertFalse(search.items.isEmpty)
+        print("LIVE wnacg list=\(list.items.count), pages=\(pages.count), first image HTTP 200 bytes=\(image.count), categories=\(categories.count), category page2=\(category.items.count), search=\(search.items.count)")
+    }
+}

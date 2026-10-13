@@ -1,0 +1,2 @@
+# Retain whitespace in captured upstream HTML/JS as parser regression evidence.
+Packages/ShelfCore/Tests/ShelfCoreTests/Fixtures/*.html -whitespace

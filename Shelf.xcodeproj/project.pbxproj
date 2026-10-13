@@ -1,0 +1,38 @@
+// !$*UTF8*$!
+{archiveVersion = 1; classes = {}; objectVersion = 56; objects = {
+49229A856468809B7D33E84E = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Browsers.swift"; sourceTree = "<group>";};
+D45DDF26E243B5F99340E92D = {isa = PBXBuildFile; fileRef = 49229A856468809B7D33E84E;};
+7CEB6069AF4ED8739F772CEC = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Details.swift"; sourceTree = "<group>";};
+540B24B435A8FD0C0BC76F1D = {isa = PBXBuildFile; fileRef = 7CEB6069AF4ED8739F772CEC;};
+9CD12603BE9DFE074695363F = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "KeychainStore.swift"; sourceTree = "<group>";};
+D8F4EE3D40C3085B847E4553 = {isa = PBXBuildFile; fileRef = 9CD12603BE9DFE074695363F;};
+3D3F6DB6D2AA3DD6F0E06B9E = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "PlayerView.swift"; sourceTree = "<group>";};
+5CA5698AF1D6993DB3DD2F2F = {isa = PBXBuildFile; fileRef = 3D3F6DB6D2AA3DD6F0E06B9E;};
+B103F9F351BE1F5EE0D42AD4 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ReaderView.swift"; sourceTree = "<group>";};
+CFD720F621B6BE197BA3FA35 = {isa = PBXBuildFile; fileRef = B103F9F351BE1F5EE0D42AD4;};
+170998C61BA5E0C4C7BC9487 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "RemoteImage.swift"; sourceTree = "<group>";};
+B4843E586AB52081249BD5B5 = {isa = PBXBuildFile; fileRef = 170998C61BA5E0C4C7BC9487;};
+EEDE96C56CBAC202420A47BC = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SettingsView.swift"; sourceTree = "<group>";};
+289C8D3C22097DA2A314830F = {isa = PBXBuildFile; fileRef = EEDE96C56CBAC202420A47BC;};
+05867030490DF93BE27408C8 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ShelfApp.swift"; sourceTree = "<group>";};
+FF1A608544AB7ACA1AB5E99F = {isa = PBXBuildFile; fileRef = 05867030490DF93BE27408C8;};
+38A007151ABE87CC01A5B6E9 = {isa = PBXFileReference; explicitFileType = wrapper.application; path = Shelf.app; sourceTree = BUILT_PRODUCTS_DIR;};
+69F8D45498D7E20DA99BB780 = {isa = PBXGroup; path = Shelf; sourceTree = "<group>"; children = (49229A856468809B7D33E84E,7CEB6069AF4ED8739F772CEC,9CD12603BE9DFE074695363F,3D3F6DB6D2AA3DD6F0E06B9E,B103F9F351BE1F5EE0D42AD4,170998C61BA5E0C4C7BC9487,EEDE96C56CBAC202420A47BC,05867030490DF93BE27408C8,);};
+FBDC4F23F93125BBEEAE800C = {isa = PBXGroup; name = Products; sourceTree = "<group>"; children = (38A007151ABE87CC01A5B6E9,);};
+B28B7AF69320201D1CF206EB = {isa = PBXGroup; sourceTree = "<group>"; children = (69F8D45498D7E20DA99BB780,FBDC4F23F93125BBEEAE800C,);};
+582681C2EAE02B3F3D399C0C = {isa = XCLocalSwiftPackageReference; relativePath = Packages/ShelfCore;};
+05B4C13CEE8FCA4F3D850987 = {isa = XCSwiftPackageProductDependency; package = 582681C2EAE02B3F3D399C0C; productName = ShelfCore;};
+B567B43AB0EEEBB82B99B3C4 = {isa = PBXBuildFile; productRef = 05B4C13CEE8FCA4F3D850987;};
+BCE16DD0260827ECF338C787 = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (D45DDF26E243B5F99340E92D,540B24B435A8FD0C0BC76F1D,D8F4EE3D40C3085B847E4553,5CA5698AF1D6993DB3DD2F2F,CFD720F621B6BE197BA3FA35,B4843E586AB52081249BD5B5,289C8D3C22097DA2A314830F,FF1A608544AB7ACA1AB5E99F,); runOnlyForDeploymentPostprocessing = 0;};
+7561BFB015D8F536760CB671 = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (B567B43AB0EEEBB82B99B3C4,); runOnlyForDeploymentPostprocessing = 0;};
+0189424A5A60FED329FA868E = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0;};
+89E1FD6268CC0F221A2BE178 = {isa = XCBuildConfiguration; name = Debug; buildSettings = {CLANG_ENABLE_MODULES = YES; SDKROOT = appletvos; TVOS_DEPLOYMENT_TARGET = 18.0; SWIFT_VERSION = 6.0; SWIFT_OPTIMIZATION_LEVEL = "-Onone"; DEBUG_INFORMATION_FORMAT = dwarf; SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG; ENABLE_TESTABILITY = YES;};};
+7082CC0B6FC1282FCEABD07A = {isa = XCBuildConfiguration; name = Debug; buildSettings = {CODE_SIGN_STYLE = Automatic; DEVELOPMENT_TEAM = ALZ45VUZFN; PRODUCT_BUNDLE_IDENTIFIER = com.dreaife.shelf; PRODUCT_NAME = "$(TARGET_NAME)"; TARGETED_DEVICE_FAMILY = 3; SUPPORTED_PLATFORMS = "appletvos appletvsimulator"; GENERATE_INFOPLIST_FILE = YES; INFOPLIST_KEY_CFBundleDisplayName = Shelf; INFOPLIST_KEY_UILaunchScreen_Generation = YES; MARKETING_VERSION = 1.0; CURRENT_PROJECT_VERSION = 1; LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks"; SWIFT_EMIT_LOC_STRINGS = YES;};};
+E6DE6C99132752C914FEF632 = {isa = XCBuildConfiguration; name = Release; buildSettings = {CLANG_ENABLE_MODULES = YES; SDKROOT = appletvos; TVOS_DEPLOYMENT_TARGET = 18.0; SWIFT_VERSION = 6.0; SWIFT_COMPILATION_MODE = wholemodule; DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";};};
+639A7CA24D39909E713B47F7 = {isa = XCBuildConfiguration; name = Release; buildSettings = {CODE_SIGN_STYLE = Automatic; DEVELOPMENT_TEAM = ALZ45VUZFN; PRODUCT_BUNDLE_IDENTIFIER = com.dreaife.shelf; PRODUCT_NAME = "$(TARGET_NAME)"; TARGETED_DEVICE_FAMILY = 3; SUPPORTED_PLATFORMS = "appletvos appletvsimulator"; GENERATE_INFOPLIST_FILE = YES; INFOPLIST_KEY_CFBundleDisplayName = Shelf; INFOPLIST_KEY_UILaunchScreen_Generation = YES; MARKETING_VERSION = 1.0; CURRENT_PROJECT_VERSION = 1; LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks"; SWIFT_EMIT_LOC_STRINGS = YES;};};
+41A2CC2D5321B7BB2E956CA5 = {isa = XCConfigurationList; buildConfigurations = (89E1FD6268CC0F221A2BE178,E6DE6C99132752C914FEF632,); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release;};
+B483F6EB73610DE752E457A0 = {isa = XCConfigurationList; buildConfigurations = (7082CC0B6FC1282FCEABD07A,639A7CA24D39909E713B47F7,); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release;};
+0E8A3AD980EC179856012B7E = {isa = PBXNativeTarget; buildConfigurationList = B483F6EB73610DE752E457A0; buildPhases = (BCE16DD0260827ECF338C787,7561BFB015D8F536760CB671,0189424A5A60FED329FA868E,); buildRules = (); dependencies = (); name = Shelf; packageProductDependencies = (05B4C13CEE8FCA4F3D850987,); productName = Shelf; productReference = 38A007151ABE87CC01A5B6E9; productType = "com.apple.product-type.application";};
+98F54143AB4E86B28C3AFEE0 = {isa = PBXProject; attributes = {BuildIndependentTargetsInParallel = YES; LastUpgradeCheck = 2700; TargetAttributes = {0E8A3AD980EC179856012B7E = {CreatedOnToolsVersion = 27.0; ProvisioningStyle = Automatic;};};}; buildConfigurationList = 41A2CC2D5321B7BB2E956CA5; compatibilityVersion = "Xcode 14.0"; developmentRegion = en; hasScannedForEncodings = 0; knownRegions = (en,Base,); mainGroup = B28B7AF69320201D1CF206EB; packageReferences = (582681C2EAE02B3F3D399C0C,); productRefGroup = FBDC4F23F93125BBEEAE800C; projectDirPath = ""; projectRoot = ""; targets = (0E8A3AD980EC179856012B7E,);};
+}; rootObject = 98F54143AB4E86B28C3AFEE0;
+}

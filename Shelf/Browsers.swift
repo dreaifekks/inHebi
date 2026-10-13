@@ -29,25 +29,37 @@ struct VideoBrowser: View {
     let source: any VideoSource
     let authRevision: Int
     @State private var pager = Pager<Video>()
-    @State private var sort = "date"
-    @State private var rating = "all"
+    @State private var sort: String
+    @State private var rating: String
+    @State private var category = ""
     @State private var searchText = ""
     @State private var query = ""
-    private var key: String { "\(sort)|\(rating)|\(query)|\(authRevision)" }
+    init(source: any VideoSource, authRevision: Int = 0) {
+        self.source = source
+        self.authRevision = authRevision
+        _sort = State(initialValue: source.sorts[0].id)
+        _rating = State(initialValue: source.ratings.first?.id ?? "")
+    }
+    private var key: String { "\(sort)|\(rating)|\(category)|\(query)|\(authRevision)" }
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 36) {
                 Text(source.name).font(.largeTitle.bold())
+                SearchField(text: $searchText) { query = searchText.trimmingCharacters(in: .whitespacesAndNewlines) }
                 HStack(spacing: 24) {
-                    SearchField(text: $searchText) { query = searchText.trimmingCharacters(in: .whitespacesAndNewlines) }
-                    Picker("排序", selection: $sort) { ForEach(source.sorts) { Text($0.title).tag($0.id) } }.disabled(!query.isEmpty)
-                    Picker("分级", selection: $rating) { ForEach(source.ratings) { Text($0.title).tag($0.id) } }.disabled(!query.isEmpty)
-                }
-                if !query.isEmpty { Text("搜索：\(query) · 使用站点搜索结果排序").foregroundStyle(.secondary) }
+                    if !source.categories.isEmpty {
+                        Picker("分类", selection: $category) { ForEach(source.categories) { Text($0.title).tag($0.id) } }
+                    }
+                    Picker("排序", selection: $sort) { ForEach(source.sorts) { Text($0.title).tag($0.id) } }
+                    if !source.ratings.isEmpty {
+                        Picker("分级", selection: $rating) { ForEach(source.ratings) { Text($0.title).tag($0.id) } }
+                    }
+                }.disabled(!query.isEmpty && !source.supportsSearchFilters)
+                if !query.isEmpty && !source.supportsSearchFilters { Text("搜索：\(query) · 使用站点搜索结果排序").foregroundStyle(.secondary) }
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 350), spacing: 40)], spacing: 44) {
                     ForEach(pager.items) { video in
                         NavigationLink { VideoDetail(source: source, id: video.id) } label: {
-                            MediaCard(title: video.title, subtitle: video.author, url: video.thumbnail, portrait: false)
+                            MediaCard(title: video.title, subtitle: video.author, url: video.thumbnail, portrait: video.isPortrait)
                         }.buttonStyle(.card)
                     }
                 }
@@ -59,8 +71,8 @@ struct VideoBrowser: View {
         .task(id: key) { await load(reset: true) }
     }
     private func load(reset: Bool = false) async {
-        let sort = sort, rating = rating, query = query
-        await pager.load(reset: reset, first: 0) { try await source.videos(page: $0, sort: sort, rating: rating, query: query) }
+        let sort = sort, rating = rating, query = query, category = category
+        await pager.load(reset: reset, first: 0) { try await source.videos(page: $0, sort: sort, rating: rating, query: query, category: category) }
     }
 }
 
@@ -91,7 +103,7 @@ struct AlbumBrowser: View {
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 260), spacing: 40)], spacing: 44) {
                     ForEach(pager.items) { album in
                         NavigationLink { AlbumDetail(source: source, id: album.id) } label: {
-                            MediaCard(title: album.title, subtitle: "", url: album.cover, portrait: true)
+                            MediaCard(title: album.title, subtitle: "", url: album.cover, portrait: true, referer: WnacgSource.base.absoluteString)
                         }.buttonStyle(.card)
                     }
                 }
@@ -143,9 +155,10 @@ struct MediaCard: View {
     let subtitle: String
     let url: URL?
     let portrait: Bool
+    var referer: String?
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            RemoteImage(url: url, referer: portrait ? WnacgSource.base.absoluteString : nil)
+            RemoteImage(url: url, referer: referer)
                 .frame(height: portrait ? 330 : 205).clipped()
             Text(title).font(.headline).lineLimit(2).frame(height: 62, alignment: .topLeading)
             if !subtitle.isEmpty { Text(subtitle).font(.caption).foregroundStyle(.secondary).lineLimit(1) }

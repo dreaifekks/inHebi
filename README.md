@@ -1,6 +1,6 @@
 # Shelf
 
-自用 tvOS 原生应用：iwara 视频、wnacg 漫画。SwiftUI + AVKit + URLSession；无 WebView、后端、下载、历史或同步。最低 tvOS 18；ShelfCore 支持 macOS 15 / tvOS 18。唯一外部依赖是 SwiftSoup（锁定文件当前解析为 2.14.2）。
+自用 tvOS 原生应用：iwara / Hanime1 视频、wnacg 漫画。SwiftUI + AVKit + URLSession；无 WebView、后端、下载、历史或同步。最低 tvOS 18；ShelfCore 支持 macOS 15 / tvOS 18。唯一外部依赖是 SwiftSoup（锁定文件当前解析为 2.14.2）。
 
 ## 打开与验证
 
@@ -37,9 +37,9 @@ Generic 编译不需要 tvOS 模拟器运行时。本次未下载运行时、未
 
 ## 使用
 
-顶部 Tab 为视频、漫画、设置。大卡片使用系统 tvOS `.card` 焦点效果；筛选、搜索按钮和“加载下一页”均可用遥控器操作。
+顶部 Tab 为 iwara、Hanime1、漫画、设置。大卡片使用系统 tvOS `.card` 焦点效果；筛选、搜索按钮和“加载下一页”均可用遥控器操作。
 
-- 视频：排序/分级筛选，提交搜索词，进入详情选择清晰度（默认最高），系统播放器播放。搜索采用站点搜索排序，排序/分级控件暂不可用。
+- 视频：排序/分级筛选，提交搜索词，进入详情选择清晰度（默认最高），系统播放器播放。iwara 搜索采用站点搜索排序，排序/分级控件暂不可用；Hanime1 搜索可叠加分类和排序，无需登录。
 - 登录：设置页输入 iwara 邮箱、密码。只将 user token 存入 Keychain，access token 保留内存；密码提交完成或离开页面时清空。退出会删除本机 token。账号权限、真实登录结果仍需用户验证。
 - 漫画：最新/分类/搜索 → 相册 → 开始阅读。单页按屏幕高度等比适配；向左下一页、向右上一页。选择键、上下键或播放/暂停键显示选项，可开双页（右边是前页）、重试图片或关闭。Menu/返回键先收起选项，再退出阅读。页码常驻；只在内存预加载后续页面，不落盘做离线缓存。
 
@@ -57,6 +57,18 @@ Generic 编译不需要 tvOS 模拟器运行时。本次未下载运行时、未
 - 清晰度 Source 优先，数字分辨率降序，preview 最后；补齐 `//` 的 https 协议。进入详情和开始播放时重新取签名 URL，避免长时间停留后用旧链接。
 - 普通缩略图 `https://i.iwara.tv/image/thumbnail/{file.id}/thumbnail-NN.jpg`；自定义缩略图 `/image/original/{customThumbnail.id}/{customThumbnail.name}`，均实测 200。
 - `POST /user/login` `{email,password}` → user token；`POST /user/token` + Bearer user token → accessToken。访问 API 带 access token，50 分钟更新或遇 401 更新重试一次；user token 过期需重新登录。不支持外站嵌入视频，详情会显示无可播放文件。
+
+**Hanime1 — `Hanime1Source.swift`**
+
+- 唯一站点域名常量为 **`Hanime1Source.base` = `https://hanimeone.me`**；不使用被 Cloudflare 拦截的旧域名 hanime1.me。URLSession + Safari UA，直接解析 HTML，无需登录或客户端签名计算。
+- 列表与关键词搜索统一 `/search?query=...&genre=...&sort=...&year=&month=&page=1`。站点从第 1 页开始，核心协议从第 0 页开始；解析 `rel=next`，加载下一页时保留分类、排序与关键词。
+- 实测分类表单值为：裏番、泡麵番、Motion Anime、3DCG、2.5D、2D動畫、AI生成、MMD、Cosplay、新番預告，以及全部。`3D動畫`、`同人作品` 不是当前 genre 值。
+- 排序值为：最新上市、最新上傳、本日排行、本週排行、本月排行、觀看次數、讚好比例、時長最長、他們在看。代码选项有真实表单 fixture 测试核对。
+- 标签参数确实是重复 `tags[]`；年份、月份也存在。这次 UI 按需求只暴露分类、排序和关键词；详情展示标签。
+- 横版卡片 `.horizontal-card`，竖版 `.home-rows-videos-title`；只收集包含封面的 `/watch?v=` 链接，排除广告并按 ID 去重。封面方向作为模型数据交给共用卡片。
+- `/watch?v={id}`：标题 `#shareBtn-title`、作者 `#video-artist-name`、简介 `.video-caption-text`、时长 `og:video:duration`、标签 `.single-video-tag` 中的搜索链接；不把投票操作当标签。
+- 从 `video#player source[src]` 提取播放地址，按 `size` 数字降序，默认最高。十个实际分类各抽查一页均为 MP4 source；存在 480/720/1080p，页面经常按 720、480、1080 排列。未在这些样例发现 m3u8 或 script-only 播放地址，不实现未经验证的 JS 地址提取。标准 source 的 URL 交给 AVPlayer。
+- MP4 与封面包含有时效的 `secure` 参数，由站点返回；不计算签名、不保存到仓库。共用详情页在开始播放时重新请求详情，刷新直链。实际视频 Range 请求无需 Referer 即返回 206。
 
 **wnacg — `WnacgSource.swift`**
 

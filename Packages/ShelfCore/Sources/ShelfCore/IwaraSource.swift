@@ -54,7 +54,7 @@ public actor IwaraSource: VideoSource {
         if !query.isEmpty { components.queryItems = query }
         return components.url!
     }
-    public func videos(page: Int = 0, sort: String = "date", rating: String = "all", query: String = "") async throws -> Page<Video> {
+    public func videos(page: Int = 0, sort: String = "date", rating: String = "all", query: String = "", category: String = "") async throws -> Page<Video> {
         var params = [URLQueryItem(name: "page", value: String(page)), URLQueryItem(name: "limit", value: "24"), URLQueryItem(name: "sort", value: sort), URLQueryItem(name: "rating", value: rating)]
         if !query.isEmpty { params = [.init(name: "type", value: "videos"), .init(name: "query", value: query), .init(name: "page", value: String(page))] }
         return try Self.parseList(await api(query.isEmpty ? "videos" : "search", query: params))

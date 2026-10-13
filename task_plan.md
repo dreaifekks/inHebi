@@ -7,3 +7,8 @@
 - [x] Local commit (no push)
 
 Constraints honored: no simulator download or device installation; no credentials in repo; no subagents.
+
+# Hanime1 addition
+- [x] Inspect forms, card layouts and player variants with URLSession
+- [x] Add source, shared browser filters and separate Tab
+- [x] Fixture + live tests, generic build, README and local commit

@@ -19,6 +19,8 @@ public struct Video: Identifiable, Hashable, Sendable {
     public let description: String
     public let tags: [String]
     public let fileURL: URL?
+    public var availableStreams: [VideoStream] = []
+    public var isPortrait = false
 }
 public struct VideoStream: Identifiable, Hashable, Sendable {
     public var id: String { name }
@@ -35,9 +37,15 @@ public protocol VideoSource: Sendable {
     var name: String { get }
     var sorts: [SourceOption] { get }
     var ratings: [SourceOption] { get }
-    func videos(page: Int, sort: String, rating: String, query: String) async throws -> Page<Video>
+    var categories: [SourceOption] { get }
+    var supportsSearchFilters: Bool { get }
+    func videos(page: Int, sort: String, rating: String, query: String, category: String) async throws -> Page<Video>
     func video(id: String) async throws -> Video
     func streams(for video: Video) async throws -> [VideoStream]
+}
+public extension VideoSource {
+    var categories: [SourceOption] { [] }
+    var supportsSearchFilters: Bool { false }
 }
 public protocol AlbumSource: Sendable {
     var name: String { get }

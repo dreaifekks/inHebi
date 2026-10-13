@@ -53,4 +53,34 @@ import ImageIO
         XCTAssertFalse(search.items.isEmpty)
         print("LIVE wnacg list=\(list.items.count), pages=\(pages.count), first image HTTP 200 bytes=\(image.count), categories=\(categories.count), category page2=\(category.items.count), search=\(search.items.count)")
     }
+    func testHanime1Live() async throws {
+        try enabled()
+        let source = Hanime1Source()
+        let list = try await source.videos()
+        XCTAssertFalse(list.items.isEmpty)
+        let second = try await source.videos(page: 1)
+        XCTAssertFalse(second.items.isEmpty)
+        XCTAssertNotEqual(list.items.first?.id, second.items.first?.id)
+        let portrait = try await source.videos(category: "裏番")
+        XCTAssertTrue(try XCTUnwrap(portrait.items.first).isPortrait)
+        let search = try await source.videos(query: "MMD", category: "MMD")
+        XCTAssertFalse(search.items.isEmpty)
+        let detail = try await source.video(id: XCTUnwrap(search.items.first).id)
+        let streams = try await source.streams(for: detail)
+        let best = try XCTUnwrap(streams.first)
+        var request = HTTPClient.request(best.url)
+        request.setValue("bytes=0-1023", forHTTPHeaderField: "Range")
+        let (bytes, response) = try await URLSession.shared.bytes(for: request)
+        let code = try XCTUnwrap(response as? HTTPURLResponse).statusCode
+        XCTAssertTrue([200, 206].contains(code))
+        XCTAssertEqual(response.mimeType, "video/mp4")
+        var received = 0
+        for try await _ in bytes { received += 1; if received == 1024 { break } }
+        XCTAssertEqual(received, 1024)
+        let thumbnail = try XCTUnwrap(detail.thumbnail)
+        let image = try await HTTPClient().data(thumbnail)
+        XCTAssertNotNil(CGImageSourceCreateWithData(image as CFData, nil))
+        print("LIVE Hanime1 list=\(list.items.count), page2=\(second.items.count), portrait=\(portrait.items.count), search=\(search.items.count), qualities=\(streams.map(\.name)), video HTTP \(code), bytes=\(received), thumbnail bytes=\(image.count)")
+    }
+
 }

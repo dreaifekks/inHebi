@@ -4,6 +4,7 @@ import ShelfCore
 @MainActor @Observable final class AppModel {
     let iwara = IwaraSource()
     let wnacg = WnacgSource()
+    let hanime = Hanime1Source()
     var isLoggedIn = false
     var authRevision = 0
     var ready = false
@@ -38,7 +39,9 @@ import ShelfCore
                 if model.ready {
                     TabView {
                         NavigationStack { VideoBrowser(source: model.iwara, authRevision: model.authRevision) }
-                            .tabItem { Label("视频", systemImage: "play.rectangle") }
+                            .tabItem { Label("iwara", systemImage: "play.rectangle") }
+                        NavigationStack { VideoBrowser(source: model.hanime) }
+                            .tabItem { Label("Hanime1", systemImage: "film") }
                         NavigationStack { AlbumBrowser(source: model.wnacg) }
                             .tabItem { Label("漫画", systemImage: "books.vertical") }
                         NavigationStack { SettingsView(model: model) }

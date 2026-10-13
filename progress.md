@@ -39,3 +39,14 @@ Implementation complete. No subagent sessions, no simulator runtime installation
 - Search uses videos (plural); wnacg search paginator has numeric links without `.next`.
 - Double-page reader stops at the final complete spread, avoiding an extra duplicate final page.
 - Initially sandboxed Keychain query returned zero identities; authorized read of public certificate metadata found the correct team.
+
+## Hanime1 addition
+
+- Reused VideoBrowser, VideoDetail and system player. Added optional source categories/search-filter capability; existing iwara calls retain default category. Separate Hanime1 Tab; no auth added.
+- Verified the current search form and sampled ten actual genres. All sampled players exposed MP4 source tags, including 480/720/1080. No script-only/HLS samples found.
+- Added 5 fixture tests for form values, horizontal cards/ads/deduplication, portrait/empty results, detail/quality order and URL encoding/page translation; added live list/page2/category/search/detail/range/thumbnail test.
+- Initial fixture run found a forced URL unwrap on non-search tag actions; replaced it with extraction of real tag/search link text. Form verification selectors corrected to actual data-value elements.
+- `SHELF_LIVE_TESTS=1 ./script/verify.sh` at 02:58–02:59 JST: all 17 tests passed, no skips; generic tvOS Simulator build passed.
+- Hanime1 live evidence: list 59, page 2 59 with different first ID, portrait category 41, filtered MMD search 59; detail qualities 1080p/720p/480p; best stream HTTP 206, 1,024 bytes; thumbnail 65,027 bytes. iwara and wnacg live tests also passed unchanged.
+- After removing an unnecessary `try` warning, `./script/verify.sh` at 03:00 JST passed: 17 tests total, 3 opt-in live tests skipped, 0 failures; generic build succeeded, no Swift compiler warnings. Only the pre-existing AppIntents metadata-skip message remains.
+- Hanime1 fixtures scanned: no unredacted secure URL parameters or CSRF fields; no downloaded media saved. Runtime TV UI/remote/playback remains unverified because this session has no tvOS runtime/device.

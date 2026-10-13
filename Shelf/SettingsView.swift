@@ -6,6 +6,7 @@ struct SettingsView: View {
     @State private var password = ""
     @State private var working = false
     @State private var error: String?
+    @AppStorage("reader.rightToLeft", store: TestMode.preferences) private var rightToLeft = true
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 30) {
@@ -24,7 +25,9 @@ struct SettingsView: View {
                 if let error = error ?? model.startupError { Text(error).foregroundStyle(.orange) }
                 Divider()
                 Text("漫画阅读").font(.title2)
-                Text("左右键翻页；向左为下一页，向右为上一页。按选择键或播放/暂停键打开阅读选项，切换单页或双页。双页右侧为前一页。").foregroundStyle(.secondary)
+                Button(rightToLeft ? "翻页方向：右开（左键下一页）" : "翻页方向：左开（右键下一页）") { rightToLeft.toggle() }
+                    .accessibilityIdentifier("settings.reading-direction")
+                Text("按选择键或播放/暂停键打开阅读选项，可用缩略图跳页、切换单页或双页。阅读方向和双页模式会记住。").foregroundStyle(.secondary)
                 Text("Shelf 1.0 · 仅本机使用").font(.caption).foregroundStyle(.secondary)
             }.frame(maxWidth: 1000, alignment: .leading).padding(70).frame(maxWidth: .infinity)
         }

@@ -107,3 +107,9 @@ Testing cancelled because the build failed.
 - Added Hanime1 list metadata, detail category/views/date/feedback, typed tag links, creator and related card rows; added wnacg parent/child categories, page counts/date/tags/preview thumbnails and tag pagination.
 - Fixture + actual live suite: 25 tests, 0 skipped, 0 failures. Actual expired iwara user token falls back to a usable guest list. All newly requested endpoints were reachable; author and tag result content was checked, not just status code.
 - Probe image samples: iwara large 654x490; wnacg cover 300x400. Generic tvOS build passed.
+
+## Redesign stage 3
+- Implemented fixed horizontal browsing strips, four/five column image-only focus cards, automatic pagination, separate search screens, retained focus/scroll, persisted filters and direct Play/Pause actions.
+- Implemented rich fixed video headers, actionable description/tags/authors and media rails; rich album details/previews; bounded reader progress, thumbnail jumping, remembered spreads/direction; actual end-of-item dismissal and external player metadata.
+- Layout values and decode caps are centralized in Shelf/Layout.swift. Test preferences are isolated from normal user preferences.
+- Generic tvOS application build and build-for-testing both passed. Device behavior validation follows; optional borderless/searchScopes are exposed only by a Debug test probe route, not normal product navigation.

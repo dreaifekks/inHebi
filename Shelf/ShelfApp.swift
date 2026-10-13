@@ -39,9 +39,31 @@ import ShelfCore
 
 @main struct ShelfApp: App {
     @State private var model = AppModel()
+    init() {
+        if TestMode.enabled && ProcessInfo.processInfo.arguments.contains("--ui-reset-preferences") {
+            TestMode.preferences.removePersistentDomain(forName: "com.dreaife.shelf.uitests.preferences")
+        }
+    }
     var body: some Scene {
         WindowGroup {
             Group {
+                #if DEBUG
+                if TestMode.enabled && ProcessInfo.processInfo.arguments.contains("--ui-component-probes") {
+                    UXProbeScreen()
+                } else { content }
+                #else
+                content
+                #endif
+            }
+            .overlay(alignment: .bottomLeading) {
+                if TestMode.enabled { Text(verbatim: "active=\(PlaybackActivity.shared.active);stopped=\(PlaybackActivity.shared.stoppedTime)").font(.system(size: 12)).accessibilityIdentifier("playback.activity") }
+            }
+            .tint(.cyan)
+            .preferredColorScheme(.dark)
+            .task { if !model.ready { await model.restore() } }
+        }
+    }
+    @ViewBuilder private var content: some View {
                 if model.ready {
                     TabView {
                         NavigationStack { VideoBrowser(source: model.iwara, authRevision: model.authRevision) }
@@ -55,9 +77,4 @@ import ShelfCore
                     }
                 } else { ProgressView("正在打开 Shelf…") }
             }
-            .tint(.cyan)
-            .preferredColorScheme(.dark)
-            .task { if !model.ready { await model.restore() } }
-        }
-    }
 }

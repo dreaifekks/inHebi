@@ -8,7 +8,8 @@ public struct Page<Item: Sendable>: Sendable {
 public struct SourceOption: Identifiable, Hashable, Sendable {
     public let id: String
     public let title: String
-    public init(_ id: String, _ title: String) { self.id = id; self.title = title }
+    public var children: [SourceOption]
+    public init(_ id: String, _ title: String, children: [SourceOption] = []) { self.id = id; self.title = title; self.children = children }
 }
 public struct Video: Identifiable, Hashable, Sendable {
     public let id: String
@@ -21,6 +22,22 @@ public struct Video: Identifiable, Hashable, Sendable {
     public let fileURL: URL?
     public var availableStreams: [VideoStream] = []
     public var isPortrait = false
+    public var width: Int?
+    public var height: Int?
+    public var createdAt: String?
+    public var numViews: Int?
+    public var numLikes: Int?
+    public var numComments: Int?
+    public var rating: String?
+    public var authorID: String?
+    public var embedURL: URL?
+    public var viewsText: String?
+    public var feedbackText: String?
+    public var categoryText: String?
+    public var tagLinks: [BrowseTag] = []
+    public var authorVideos: [Video] = []
+    public var relatedVideos: [Video] = []
+    public var authorSectionTitle = "作者的其他视频"
 }
 public struct VideoStream: Identifiable, Hashable, Sendable {
     public var id: String { name }
@@ -32,6 +49,19 @@ public struct Album: Identifiable, Hashable, Sendable {
     public let title: String
     public let cover: URL?
     public let pageCount: Int?
+    public var categoryText: String?
+    public var createdAt: String?
+    public var tags: [BrowseTag] = []
+    public var previews: [URL] = []
+}
+public struct BrowseTag: Identifiable, Hashable, Sendable {
+    public var id: String { "\(usesSearch):\(value)" }
+    public let title: String
+    public let value: String
+    public var usesSearch = false
+}
+public enum VideoFilter: Hashable, Sendable {
+    case author(String), tag(String), query(String)
 }
 public protocol VideoSource: Sendable {
     var name: String { get }
@@ -42,19 +72,29 @@ public protocol VideoSource: Sendable {
     func videos(page: Int, sort: String, rating: String, query: String, category: String) async throws -> Page<Video>
     func video(id: String) async throws -> Video
     func streams(for video: Video) async throws -> [VideoStream]
+    func filteredVideos(_ filter: VideoFilter, page: Int) async throws -> Page<Video>
+    func creatorVideos(for video: Video) async throws -> [Video]
+    func relatedVideos(for video: Video) async throws -> [Video]
 }
 public extension VideoSource {
     var categories: [SourceOption] { [] }
     var supportsSearchFilters: Bool { false }
+    func creatorVideos(for video: Video) async throws -> [Video] { video.authorVideos }
+    func relatedVideos(for video: Video) async throws -> [Video] { video.relatedVideos }
 }
 public protocol AlbumSource: Sendable {
     var name: String { get }
     var firstPage: Int { get }
     func imageReferer(albumID: String?) -> String
     func categories() async throws -> [SourceOption]
-    func albums(page: Int, category: String, query: String) async throws -> Page<Album>
+    func albums(page: Int, category: String, query: String, tag: String) async throws -> Page<Album>
     func album(id: String) async throws -> Album
     func pages(id: String) async throws -> [URL]
+}
+public extension AlbumSource {
+    func albums(page: Int, category: String, query: String) async throws -> Page<Album> {
+        try await albums(page: page, category: category, query: query, tag: "")
+    }
 }
 public enum ShelfError: LocalizedError, Sendable {
     case http(Int), parse(String), message(String)

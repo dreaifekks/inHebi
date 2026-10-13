@@ -101,3 +101,9 @@ Testing cancelled because the build failed.
 - Added key-retaining Pager and explicit URLSession cancellation handling, JWT exp refresh and expired-session guest fallback with settings notice, source-owned album first page/Referer, and cancellable structured image loading with size-aware cache keys.
 - Offline regression: 22 tests total, 3 opt-in live tests skipped, 0 failures. Includes return-with-same-key, filter change, cancelled pager retry, real URLSession consumer cancellation, token refresh without server 401, and 403 user-token guest fallback.
 - Generic tvOS Simulator SDK application build passed. Removed device identifiers/names from tracked documentation.
+
+## Redesign stage 2
+- Added iwara statistics/resolution/date/rating/author/embed metadata and validated author, related and tag browsing; list custom covers use large, detail uses original.
+- Added Hanime1 list metadata, detail category/views/date/feedback, typed tag links, creator and related card rows; added wnacg parent/child categories, page counts/date/tags/preview thumbnails and tag pagination.
+- Fixture + actual live suite: 25 tests, 0 skipped, 0 failures. Actual expired iwara user token falls back to a usable guest list. All newly requested endpoints were reachable; author and tag result content was checked, not just status code.
+- Probe image samples: iwara large 654x490; wnacg cover 300x400. Generic tvOS build passed.

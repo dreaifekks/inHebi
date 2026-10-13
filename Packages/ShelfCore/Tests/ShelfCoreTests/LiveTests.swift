@@ -28,6 +28,20 @@ import ImageIO
         print("LIVE iwara list=\(list.items.count), detail OK, qualities=\(streams.map(\.name)), video HTTP \(code), bytes=\(received), thumbnail bytes=\(image.count)")
         let search = try await source.videos(query: "MMD")
         print("LIVE iwara search=\(search.items.count)")
+        let byAuthor = try await source.filteredVideos(.author(XCTUnwrap(detail.authorID)), page: 0)
+        XCTAssertTrue(byAuthor.items.allSatisfy { $0.authorID == detail.authorID })
+        let tag = try XCTUnwrap(detail.tags.first)
+        let byTag = try await source.filteredVideos(.tag(tag), page: 0)
+        XCTAssertTrue(byTag.items.allSatisfy { $0.tags.contains(tag) })
+        let related = try await source.relatedVideos(for: detail)
+        XCTAssertFalse(related.isEmpty)
+        let expired = IwaraSource()
+        await expired.setUserToken("fixture-invalid-user-token")
+        let guest = try await expired.videos()
+        let hasSession = await expired.hasSession
+        XCTAssertFalse(hasSession)
+        XCTAssertFalse(guest.items.isEmpty)
+        print("LIVE iwara author/tag/related and expired-session guest fallback OK")
     }
     func testWnacgLive() async throws {
         try enabled()
@@ -37,7 +51,7 @@ import ImageIO
         let detail = try await source.album(id: first.id)
         let pages = try await source.pages(id: first.id)
         let imageURL = try XCTUnwrap(pages.first)
-        let request = HTTPClient.request(imageURL, headers: ["Referer": "https://www.wnacg.com/photos-slide-aid-\(first.id).html"])
+        let request = HTTPClient.request(imageURL, headers: ["Referer": source.imageReferer(albumID: first.id)])
         let (image, response) = try await URLSession.shared.data(for: request)
         XCTAssertEqual((response as? HTTPURLResponse)?.statusCode, 200)
         XCTAssertTrue((response.mimeType ?? "").hasPrefix("image/"))
@@ -51,6 +65,9 @@ import ImageIO
         XCTAssertFalse(category.items.isEmpty)
         let search = try await source.albums(query: "original")
         XCTAssertFalse(search.items.isEmpty)
+        let tag = try XCTUnwrap(detail.tags.first)
+        let tagged = try await source.albums(tag: tag.value)
+        XCTAssertFalse(tagged.items.isEmpty)
         print("LIVE wnacg list=\(list.items.count), pages=\(pages.count), first image HTTP 200 bytes=\(image.count), categories=\(categories.count), category page2=\(category.items.count), search=\(search.items.count)")
     }
     func testHanime1Live() async throws {

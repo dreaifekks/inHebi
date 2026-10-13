@@ -78,6 +78,22 @@ public actor IwaraSource: VideoSource {
         if !query.isEmpty { params = [.init(name: "type", value: "videos"), .init(name: "query", value: query), .init(name: "page", value: String(page))] }
         return try Self.parseList(await api(query.isEmpty ? "videos" : "search", query: params))
     }
+    public func filteredVideos(_ filter: VideoFilter, page: Int) async throws -> Page<Video> {
+        switch filter {
+        case .query(let query): return try await videos(page: page, query: query)
+        case .author(let value), .tag(let value):
+            let key: String
+            if case .author = filter { key = "user" } else { key = "tags" }
+            return try Self.parseList(await api("videos", query: [.init(name: key, value: value), .init(name: "page", value: String(page)), .init(name: "limit", value: "24"), .init(name: "sort", value: "date")]))
+        }
+    }
+    public func creatorVideos(for video: Video) async throws -> [Video] {
+        guard let author = video.authorID else { return [] }
+        return try await filteredVideos(.author(author), page: 0).items.filter { $0.id != video.id }.prefix(12).map { $0 }
+    }
+    public func relatedVideos(for video: Video) async throws -> [Video] {
+        try Self.parseList(await api("video/\(video.id)/related", query: [.init(name: "limit", value: "12")])).items.filter { $0.id != video.id }
+    }
     public func video(id: String) async throws -> Video { try Self.parseVideo(await api("video/\(id)")) }
     public func streams(for video: Video) async throws -> [VideoStream] {
         guard let url = video.fileURL else { throw ShelfError.message("该视频没有可播放文件（可能为外站嵌入视频）") }
@@ -92,7 +108,7 @@ public actor IwaraSource: VideoSource {
         // List count may be offset + limit + 1, a pagination lower bound rather than total.
         return Page(items: result.results.map(\.video), nextPage: (result.page + 1) * result.limit < result.count ? result.page + 1 : nil)
     }
-    public nonisolated static func parseVideo(_ data: Data) throws -> Video { try JSONDecoder().decode(Item.self, from: data).video }
+    public nonisolated static func parseVideo(_ data: Data) throws -> Video { try JSONDecoder().decode(Item.self, from: data).makeVideo(detail: true) }
     public nonisolated static func parseStreams(_ data: Data) throws -> [VideoStream] {
         let streams = try JSONDecoder().decode([Stream].self, from: data)
         return try streams.sorted { quality($0.name) > quality($1.name) }.map {
@@ -112,17 +128,24 @@ public actor IwaraSource: VideoSource {
     private struct Item: Decodable {
         let id: String; let title: String; let body: String?; let thumbnail: Int?
         let user: User; let file: File?; let customThumbnail: File?; let fileUrl: URL?; let tags: [Tag]?
-        struct User: Decodable { let name: String }
-        struct File: Decodable { let id: String; let name: String?; let duration: Double? }
+        let createdAt: String?; let numViews: Int?; let numLikes: Int?; let numComments: Int?; let rating: String?; let embedUrl: URL?
+        struct User: Decodable { let id: String?; let name: String }
+        struct File: Decodable { let id: String; let name: String?; let duration: Double?; let width: Int?; let height: Int? }
         struct Tag: Decodable { let id: String }
-        var video: Video {
+        var video: Video { makeVideo(detail: false) }
+        func makeVideo(detail: Bool) -> Video {
             let image: URL?
             if let customThumbnail, let name = customThumbnail.name {
-                image = URL(string: "https://i.iwara.tv/image/original/\(customThumbnail.id)/\(name)")
+                image = URL(string: "https://i.iwara.tv/image/\(detail ? "original" : "large")/\(customThumbnail.id)/\(name)")
             } else if let file {
                 image = URL(string: "https://i.iwara.tv/image/thumbnail/\(file.id)/thumbnail-\(String(format: "%02d", thumbnail ?? 0)).jpg")
             } else { image = nil }
-            return Video(id: id, title: title, author: user.name, duration: file?.duration, thumbnail: image, description: body ?? "", tags: tags?.map(\.id) ?? [], fileURL: fileUrl)
+            var video = Video(id: id, title: title, author: user.name, duration: file?.duration, thumbnail: image, description: body ?? "", tags: tags?.map(\.id) ?? [], fileURL: fileUrl)
+            video.width = file?.width; video.height = file?.height
+            video.createdAt = createdAt; video.numViews = numViews; video.numLikes = numLikes; video.numComments = numComments
+            video.rating = rating; video.authorID = user.id; video.embedURL = embedUrl
+            video.tagLinks = video.tags.map { BrowseTag(title: $0, value: $0) }
+            return video
         }
     }
 }

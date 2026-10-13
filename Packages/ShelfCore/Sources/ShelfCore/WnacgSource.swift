@@ -14,16 +14,17 @@ public struct WnacgSource: AlbumSource {
         String(decoding: try await http.data(url), as: UTF8.self)
     }
     public func categories() async throws -> [SourceOption] { try Self.parseCategories(await html(Self.base)) }
-    public static func listURL(page: Int, category: String, query: String) -> URL {
+    public static func listURL(page: Int, category: String, query: String, tag: String = "") -> URL {
         if !query.isEmpty {
             var url = URLComponents(url: base.appendingPathComponent("search/"), resolvingAgainstBaseURL: false)!
             url.queryItems = [.init(name: "q", value: query), .init(name: "f", value: "_all"), .init(name: "s", value: "create_time_DESC"), .init(name: "syn", value: "yes"), .init(name: "p", value: String(page))]
             return url.url!
         }
+        if !tag.isEmpty { return base.appendingPathComponent("albums-index-page-\(page)-tag-\(tag).html") }
         return base.appendingPathComponent("albums-index-page-\(page)\(category.isEmpty ? "" : "-cate-" + category).html")
     }
-    public func albums(page: Int = 1, category: String = "", query: String = "") async throws -> Page<Album> {
-        try Self.parseList(await html(Self.listURL(page: page, category: category, query: query)), page: page)
+    public func albums(page: Int = 1, category: String = "", query: String = "", tag: String = "") async throws -> Page<Album> {
+        try Self.parseList(await html(Self.listURL(page: page, category: category, query: query, tag: tag)), page: page)
     }
     public func album(id: String) async throws -> Album {
         try Self.parseAlbum(await html(Self.base.appendingPathComponent("photos-index-aid-\(id).html")), id: id)
@@ -37,11 +38,14 @@ public struct WnacgSource: AlbumSource {
     }
     public static func parseCategories(_ html: String) throws -> [SourceOption] {
         let doc = try SwiftSoup.parse(html)
-        var seen = Set<String>()
-        return try doc.select("a[href^=/albums-index-cate-]").compactMap {
-            let href = try $0.attr("href")
-            guard let id = capture(#"cate-(\d+)"#, in: href), seen.insert(id).inserted else { return nil }
-            return SourceOption(id, try $0.text())
+        return try doc.select("#album_tabs > li").compactMap { item in
+            guard let parent = try item.select("> a[href^=/albums-index-cate-]").first(),
+                  let id = capture(#"cate-(\d+)"#, in: try parent.attr("href")) else { return nil }
+            let children = try item.select(".drop_dwon a").compactMap { child -> SourceOption? in
+                guard let id = capture(#"cate-(\d+)"#, in: try child.attr("href")) else { return nil }
+                return SourceOption(id, try child.text())
+            }
+            return SourceOption(id, try parent.text(), children: children)
         }
     }
     public static func parseList(_ html: String, page: Int) throws -> Page<Album> {
@@ -51,7 +55,10 @@ public struct WnacgSource: AlbumSource {
             guard let link, let id = capture(#"aid-(\d+)"#, in: try link.attr("href")) else { throw ShelfError.parse("album id") }
             let title = try $0.select(".title").text()
             let src = try $0.select("img").first()?.attr("src")
-            return Album(id: id, title: title, cover: src.flatMap(imageURL), pageCount: nil)
+            let info = try $0.select(".info_col").text()
+            var album = Album(id: id, title: title, cover: src.flatMap(imageURL), pageCount: capture(#"(\d+)張圖片"#, in: info).flatMap(Int.init))
+            album.createdAt = capture(#"(\d{4}-\d{2}-\d{2})"#, in: info)
+            return album
         }
         guard try !items.isEmpty || doc.select("#bodywrap").first() != nil else { throw ShelfError.parse("wnacg list") }
         let next = try doc.select(".paginator a").contains { link in
@@ -68,7 +75,12 @@ public struct WnacgSource: AlbumSource {
         let labels = try doc.select(".uwconn label").text()
         let count = capture(#"頁數[：:]\s*(\d+)"#, in: labels).flatMap(Int.init)
         let cover = try doc.select(".uwthumb img").first()?.attr("src")
-        return Album(id: id, title: title, cover: cover.flatMap(imageURL), pageCount: count)
+        var album = Album(id: id, title: title, cover: cover.flatMap(imageURL), pageCount: count)
+        album.categoryText = try doc.select(".uwconn label").first()?.text().replacingOccurrences(of: "分類：", with: "")
+        album.createdAt = capture(#"(\d{4}-\d{2}-\d{2})"#, in: try doc.select(".gallary_item .info_col").first()?.text() ?? "")
+        album.tags = try doc.select(".addtags a.tagshow").map { BrowseTag(title: try $0.text(), value: try $0.text()) }
+        album.previews = try doc.select(".gallary_item .pic_box img[src]").compactMap { imageURL(try $0.attr("src")) }
+        return album
     }
     public static func parsePages(_ html: String) throws -> [URL] {
         // gallery is document.writeln("...JS..."); decode only its string literals, never execute JS.

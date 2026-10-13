@@ -32,7 +32,7 @@ final class ParsingTests: XCTestCase {
         XCTAssertEqual(list.nextPage, 2)
         XCTAssertFalse(list.items[0].title.isEmpty)
         let categories = try WnacgSource.parseCategories(html)
-        XCTAssertTrue(categories.contains { $0.id == "1" && $0.title == "漢化" })
+        XCTAssertTrue(categories.flatMap(\.children).contains { $0.id == "1" && $0.title == "漢化" })
         XCTAssertEqual(Set(categories.map(\.id)).count, categories.count)
         let detail = try WnacgSource.parseAlbum(self.html("wnacg-detail.html"), id: "395652")
         XCTAssertEqual(detail.pageCount, 11)
@@ -59,7 +59,7 @@ final class ParsingTests: XCTestCase {
         let page = try IwaraSource.parseList(fixture("iwara-page-1.json"))
         XCTAssertEqual(page.items.count, 24)
         XCTAssertEqual(page.nextPage, 2)
-        let custom = try XCTUnwrap(page.items.first { $0.thumbnail?.path.contains("/original/") == true })
+        let custom = try XCTUnwrap(page.items.first { $0.thumbnail?.path.contains("/large/") == true })
         XCTAssertEqual(custom.thumbnail?.host, "i.iwara.tv")
     }
     func testReaderOrderAndBounds() {

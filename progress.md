@@ -53,10 +53,10 @@ Implementation complete. No subagent sessions, no simulator runtime installation
 
 ## Physical Apple TV validation — blocked on Xcode account
 
-- Device dreaifeのApple TV, UDID <Apple TV 设备标识>, reachable/connected. Existing configured team ALZ45VUZFN retained (confirmed from Apple Development certificate OU in v1).
+- Device Apple TV test device, UDID ${SHELF_DEVICE_ID}, reachable/connected. Existing configured team ALZ45VUZFN retained (confirmed from Apple Development certificate OU in v1).
 - Added ShelfUITests target, four remote-driven test paths, keepAlways named screenshot attachments, teardown termination, test-only muted AVPlayer clock/state observation and artifact export scripts.
 - `xcodebuild ... -sdk appletvsimulator -destination 'generic/platform=tvOS Simulator' CODE_SIGNING_ALLOWED=NO build-for-testing`: TEST BUILD SUCCEEDED. No Swift compiler warnings after removing actor-isolation warnings in test lifecycle. This compiles tests; it does not execute them.
-- Initial signed device build and `./script/test-device.sh <Apple TV 设备标识>` both stopped before installation/test execution, exit 65.
+- Initial signed device build and `./script/test-device.sh ${SHELF_DEVICE_ID}` both stopped before installation/test execution, exit 65.
 - Logs: artifacts/device-signing-build.log and artifacts/device-ui-test.log. xcresult: artifacts/device-ui-20261014-030544.xcresult.
 - Complete signing errors (no bypass attempted):
 
@@ -71,7 +71,7 @@ Testing cancelled because the build failed.
 - User action requested: sign into the ALZ45VUZFN developer account in Xcode → Settings → Apple Accounts. Certificate/private-key presence alone does not provide portal account access for profile creation.
 - All actual TV paths, exported screenshots/visual review and normal signed installation remain pending. No runtime downloaded. UI navigation assumptions are not yet verified on TV.
 - `xcresulttool export attachments` succeeded with an empty manifest; artifacts/screenshots/index.json is `[]`, so no screenshots are claimed or visually reviewed.
-- `xcrun devicectl device info apps --device <Apple TV 设备标识> --bundle-id com.dreaife.shelf` returned no app. No Shelf build is installed on the TV by this task.
+- `xcrun devicectl device info apps --device ${SHELF_DEVICE_ID} --bundle-id com.dreaife.shelf` returned no app. No Shelf build is installed on the TV by this task.
 - Prepared code is committed separately; device execution, visual fixes if any, and final signed installation must resume after account login.
 
 ## Device validation resumed with API-key provisioning
@@ -96,3 +96,8 @@ Testing cancelled because the build failed.
 - Fixed the observed layout/focus defects and reran all four affected paths successfully. No remaining blocking visual defect in these screenshots. Real iwara account login still requires the user.
 - Normal development installation is performed from the committed code by script/install-device.sh; it embeds ShelfCommit and build number. Its receipt/log and final metadata are under ignored artifacts/, so no credential identifiers or screenshot files enter git.
 - Normal signed installation succeeded after the UI fixes. Metadata verification found Xcode omitted an arbitrary INFOPLIST_KEY custom field; added an explicit Info.plist mapping for SHELF_COMMIT before final reinstallation. No runtime/UI code changed in this metadata-only follow-up.
+
+## Redesign stage 1
+- Added key-retaining Pager and explicit URLSession cancellation handling, JWT exp refresh and expired-session guest fallback with settings notice, source-owned album first page/Referer, and cancellable structured image loading with size-aware cache keys.
+- Offline regression: 22 tests total, 3 opt-in live tests skipped, 0 failures. Includes return-with-same-key, filter change, cancelled pager retry, real URLSession consumer cancellation, token refresh without server 401, and 403 user-token guest fallback.
+- Generic tvOS Simulator SDK application build passed. Removed device identifiers/names from tracked documentation.

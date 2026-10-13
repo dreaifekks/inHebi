@@ -4,6 +4,10 @@ import SwiftSoup
 public struct WnacgSource: AlbumSource {
     public let name = "wnacg"
     public static let base = URL(string: "https://www.wnacg.com/")!
+    public let firstPage = 1
+    public func imageReferer(albumID: String?) -> String {
+        albumID.map { Self.base.appendingPathComponent("photos-slide-aid-\($0).html").absoluteString } ?? Self.base.absoluteString
+    }
     private let http: HTTPClient
     public init(http: HTTPClient = HTTPClient()) { self.http = http }
     private func html(_ url: URL) async throws -> String {

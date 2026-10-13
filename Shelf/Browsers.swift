@@ -1,30 +1,6 @@
 import SwiftUI
 import ShelfCore
 
-@MainActor @Observable final class Pager<Item: Identifiable & Sendable> where Item.ID: Sendable {
-    var items: [Item] = []
-    var next: Int?
-    var loading = false
-    var error: String?
-    private var generation = 0
-    func load(reset: Bool = false, first: Int, fetch: (Int) async throws -> Page<Item>) async {
-        if reset { generation += 1; items = []; next = first; loading = false }
-        guard !loading, let page = next else { return }
-        let current = generation
-        loading = true; error = nil
-        defer { if generation == current { loading = false } }
-        do {
-            let result = try await fetch(page)
-            try Task.checkCancellation()
-            guard generation == current else { return }
-            var seen = Set(items.map(\.id))
-            items += result.items.filter { seen.insert($0.id).inserted }
-            next = result.nextPage
-        } catch is CancellationError { }
-        catch { if generation == current { self.error = error.localizedDescription } }
-    }
-}
-
 struct VideoBrowser: View {
     let source: any VideoSource
     let authRevision: Int
@@ -72,7 +48,7 @@ struct VideoBrowser: View {
     }
     private func load(reset: Bool = false) async {
         let sort = sort, rating = rating, query = query, category = category
-        await pager.load(reset: reset, first: 0) { try await source.videos(page: $0, sort: sort, rating: rating, query: query, category: category) }
+        await pager.load(reset: reset, key: key, first: 0) { try await source.videos(page: $0, sort: sort, rating: rating, query: query, category: category) }
     }
 }
 
@@ -101,7 +77,7 @@ struct AlbumBrowser: View {
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 260), spacing: 40)], spacing: 44) {
                     ForEach(pager.items) { album in
                         NavigationLink { AlbumDetail(source: source, id: album.id) } label: {
-                            MediaCard(title: album.title, subtitle: "", url: album.cover, portrait: true, referer: WnacgSource.base.absoluteString)
+                            MediaCard(title: album.title, subtitle: "", url: album.cover, portrait: true, referer: source.imageReferer(albumID: nil))
                         }.buttonStyle(.card).accessibilityIdentifier("album.card")
                     }
                 }
@@ -112,12 +88,12 @@ struct AlbumBrowser: View {
         .task { await loadCategories() }
     }
     private func loadCategories() async {
-        do { categories = try await source.categories(); categoryError = nil }
+        do { if categories.isEmpty { categories = try await source.categories() }; categoryError = nil }
         catch { categoryError = error.localizedDescription }
     }
     private func load(reset: Bool = false) async {
         let category = category, query = query
-        await pager.load(reset: reset, first: 1) { try await source.albums(page: $0, category: category, query: query) }
+        await pager.load(reset: reset, key: key, first: source.firstPage) { try await source.albums(page: $0, category: category, query: query) }
     }
 }
 

@@ -1,23 +1,9 @@
-# Shelf v1
-- [x] Verify APIs and capture fixtures
-- [x] Implement ShelfCore models, sources, auth and tests
-- [x] Build native tvOS UI and Xcode project
-- [x] Run final fixture/live tests and generic tvOS build
-- [x] README and final review
-- [x] Local commit (no push)
+# Shelf media-first redesign
 
-Constraints honored: no simulator download or device installation; no credentials in repo; no subagents.
+- [ ] Stage 1: retained pagination, cancellation, auth expiry/JWT, source-owned album request context; compile/test/commit
+- [ ] Stage 2: metadata and validated author/tag/related endpoints, hierarchical categories, fixtures; compile/test/commit
+- [ ] Stage 3: media grids/filter strip/search/detail/reader/player UX; compile/test/commit
+- [ ] Stage 4: offline/live suite, all section 14 probes and device UI regression, screenshots/fixes
+- [ ] Final commit, normal signed installation, verify installed revision
 
-# Hanime1 addition
-- [x] Inspect forms, card layouts and player variants with URLSession
-- [x] Add source, shared browser filters and separate Tab
-- [x] Fixture + live tests, generic build, README and local commit
-
-# Apple TV device validation
-- [x] Confirm automatic signing and register paired TV
-- [x] Add remote-driven XCUITest target and test-only muted playback progress
-- [x] Run device tests, export and inspect all named screenshots
-- [x] Fix observed issues and rerun affected tests
-- [x] Commit tested changes (no push); normal install receipt is recorded separately in artifacts/device-install.log
-
-Device phase resumed with user-authorized API-key provisioning. Key material is referenced only through local path/environment; no key IDs or issuer IDs are tracked.
+Scope: P0/P1 plus reader position/spread/direction and player end/metadata. No playback resume, search history/scopes, subscriptions or ranking. No runtime downloads, no push, no subordinate sessions.

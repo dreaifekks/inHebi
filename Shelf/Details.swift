@@ -79,7 +79,7 @@ struct AlbumDetail: View {
         ScrollView {
             HStack(alignment: .top, spacing: 70) {
                 if let album {
-                    RemoteImage(url: album.cover, referer: WnacgSource.base.absoluteString).frame(width: 460, height: 630)
+                    RemoteImage(url: album.cover, referer: source.imageReferer(albumID: id)).frame(width: 460, height: 630)
                     VStack(alignment: .leading, spacing: 36) {
                         Text(album.title).font(.title.bold()).accessibilityIdentifier("album.title")
                         if let count = album.pageCount { Text("\(count) 页").foregroundStyle(.secondary) }
@@ -91,7 +91,7 @@ struct AlbumDetail: View {
             }.padding(70)
         }
         .task { await load() }
-        .fullScreenCover(isPresented: $reading) { ReaderView(pages: pages, albumID: id) }
+        .fullScreenCover(isPresented: $reading) { ReaderView(pages: pages, albumID: id, referer: source.imageReferer(albumID: id)) }
     }
     @ViewBuilder private var status: some View {
         if loading { ProgressView("加载中…") }

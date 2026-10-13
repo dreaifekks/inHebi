@@ -11,6 +11,7 @@ import ShelfCore
     var startupError: String?
     private let keychain = KeychainStore()
     func restore() async {
+        await iwara.setExpirationHandler { [weak self] in await self?.sessionExpired() }
         do {
             let token = try keychain.read()
             await iwara.setUserToken(token)
@@ -18,11 +19,16 @@ import ShelfCore
         } catch { startupError = error.localizedDescription }
         ready = true
     }
+    private func sessionExpired() {
+        isLoggedIn = false
+        startupError = "iwara 登录已过期，当前使用游客模式，请重新登录。"
+        do { try keychain.delete() } catch { startupError = error.localizedDescription }
+    }
     func login(email: String, password: String) async throws {
         let token = try await iwara.login(email: email, password: password)
         do { try keychain.save(token) }
         catch { await iwara.setUserToken(nil); throw error }
-        isLoggedIn = true; authRevision += 1
+        isLoggedIn = true; startupError = nil; authRevision += 1
     }
     func logout() async throws {
         try keychain.delete()

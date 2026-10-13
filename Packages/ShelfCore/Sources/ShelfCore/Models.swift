@@ -49,6 +49,8 @@ public extension VideoSource {
 }
 public protocol AlbumSource: Sendable {
     var name: String { get }
+    var firstPage: Int { get }
+    func imageReferer(albumID: String?) -> String
     func categories() async throws -> [SourceOption]
     func albums(page: Int, category: String, query: String) async throws -> Page<Album>
     func album(id: String) async throws -> Album

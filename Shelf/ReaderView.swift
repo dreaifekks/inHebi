@@ -4,6 +4,7 @@ import ShelfCore
 struct ReaderView: View {
     let pages: [URL]
     let albumID: String
+    let referer: String
     @State private var page = 0
     @State private var spread = false
     @State private var controls = false
@@ -11,7 +12,6 @@ struct ReaderView: View {
     @FocusState private var focus: Focus?
     @Environment(\.dismiss) private var dismiss
     private enum Focus: Hashable { case canvas, resume }
-    private var referer: String { "https://www.wnacg.com/photos-slide-aid-\(albumID).html" }
     private var indices: [Int] { ReaderLayout.visibleIndices(page: page, count: pages.count, spread: spread) }
     var body: some View {
         GeometryReader { geometry in

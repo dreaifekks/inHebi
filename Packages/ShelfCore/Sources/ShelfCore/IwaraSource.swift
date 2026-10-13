@@ -12,6 +12,9 @@ public actor IwaraSource: VideoSource {
     private var accessToken: String?
     private var accessExpiry = Date.distantPast
     private var authGeneration = 0
+    private var expirationHandler: (@Sendable () async -> Void)?
+    public func setExpirationHandler(_ action: @escaping @Sendable () async -> Void) { expirationHandler = action }
+    public var hasSession: Bool { userToken != nil }
     public init(http: HTTPClient = HTTPClient()) { self.http = http }
     public func setUserToken(_ token: String?) {
         authGeneration += 1
@@ -24,7 +27,7 @@ public actor IwaraSource: VideoSource {
         request.httpBody = try JSONEncoder().encode(Login(email: email, password: password))
         let reply = try JSONDecoder().decode(UserToken.self, from: await http.data(for: request))
         setUserToken(reply.token)
-        do { _ = try await bearer() } catch { setUserToken(nil); throw error }
+        do { guard try await bearer() != nil else { throw ShelfError.message("登录凭证已失效，请重新登录") } } catch { setUserToken(nil); throw error }
         return reply.token
     }
     private func bearer() async throws -> String? {
@@ -33,11 +36,27 @@ public actor IwaraSource: VideoSource {
         let generation = authGeneration
         var request = HTTPClient.request(Self.url("user/token"), headers: ["Authorization": "Bearer \(userToken)", "Content-Type": "application/json"])
         request.httpMethod = "POST"; request.httpBody = Data()
-        let reply = try JSONDecoder().decode(AccessToken.self, from: await http.data(for: request))
-        guard generation == authGeneration else { throw CancellationError() }
-        accessToken = reply.accessToken
-        accessExpiry = Date().addingTimeInterval(50 * 60)
-        return reply.accessToken
+        do {
+            let reply = try JSONDecoder().decode(AccessToken.self, from: await http.data(for: request))
+            guard generation == authGeneration else { throw CancellationError() }
+            accessToken = reply.accessToken
+            accessExpiry = try Self.tokenExpiry(reply.accessToken).addingTimeInterval(-60)
+            return reply.accessToken
+        } catch ShelfError.http(let status) where status == 401 || status == 403 {
+            guard generation == authGeneration else { throw CancellationError() }
+            setUserToken(nil)
+            await expirationHandler?()
+            return nil
+        }
+    }
+    public nonisolated static func tokenExpiry(_ token: String) throws -> Date {
+        let parts = token.split(separator: ".")
+        guard parts.count == 3 else { throw ShelfError.parse("access token JWT") }
+        var payload = String(parts[1]).replacingOccurrences(of: "-", with: "+").replacingOccurrences(of: "_", with: "/")
+        payload += String(repeating: "=", count: (4 - payload.count % 4) % 4)
+        guard let data = Data(base64Encoded: payload) else { throw ShelfError.parse("JWT payload") }
+        struct Claims: Decodable { let exp: Double }
+        return Date(timeIntervalSince1970: try JSONDecoder().decode(Claims.self, from: data).exp)
     }
     private func api(_ path: String, query: [URLQueryItem] = []) async throws -> Data {
         let token = try await bearer()

@@ -25,7 +25,8 @@ struct ReaderView: View {
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .contentShape(Rectangle())
-                .focusable()
+                .focusable(!controls)
+                .accessibilityElement(children: .contain)
                 .focused($focus, equals: .canvas)
                 .accessibilityIdentifier("reader.canvas")
                 .focusEffectDisabled()

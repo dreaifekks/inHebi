@@ -48,11 +48,11 @@ struct VideoBrowser: View {
                 SearchField(text: $searchText) { query = searchText.trimmingCharacters(in: .whitespacesAndNewlines) }
                 HStack(spacing: 24) {
                     if !source.categories.isEmpty {
-                        Picker("分类", selection: $category) { ForEach(source.categories) { Text($0.title).tag($0.id) } }
+                        OptionPicker(title: "分类", selection: $category, options: source.categories)
                     }
-                    Picker("排序", selection: $sort) { ForEach(source.sorts) { Text($0.title).tag($0.id) } }
+                    OptionPicker(title: "排序", selection: $sort, options: source.sorts)
                     if !source.ratings.isEmpty {
-                        Picker("分级", selection: $rating) { ForEach(source.ratings) { Text($0.title).tag($0.id) } }
+                        OptionPicker(title: "分级", selection: $rating, options: source.ratings)
                     }
                 }.disabled(!query.isEmpty && !source.supportsSearchFilters)
                 if !query.isEmpty && !source.supportsSearchFilters { Text("搜索：\(query) · 使用站点搜索结果排序").foregroundStyle(.secondary) }
@@ -91,10 +91,8 @@ struct AlbumBrowser: View {
                 Text(source.name).font(.largeTitle.bold())
                 HStack(spacing: 24) {
                     SearchField(text: $searchText) { query = searchText.trimmingCharacters(in: .whitespacesAndNewlines) }
-                    Picker("分类", selection: $category) {
-                        Text("最新 · 全部").tag("")
-                        ForEach(categories) { Text($0.title).tag($0.id) }
-                    }.disabled(!query.isEmpty)
+                    OptionPicker(title: "分类", selection: $category, options: [SourceOption("", "最新 · 全部")] + categories)
+                        .disabled(!query.isEmpty)
                 }
                 if let categoryError {
                     Text(categoryError).foregroundStyle(.orange)
@@ -160,8 +158,43 @@ struct MediaCard: View {
         VStack(alignment: .leading, spacing: 14) {
             RemoteImage(url: url, referer: referer)
                 .frame(height: portrait ? 330 : 205).clipped()
-            Text(title).font(.headline).lineLimit(2).frame(height: 62, alignment: .topLeading)
+            Text(title).font(.headline).lineLimit(2).frame(height: 100, alignment: .topLeading)
             if !subtitle.isEmpty { Text(subtitle).font(.caption).foregroundStyle(.secondary).lineLimit(1) }
         }.padding(18).frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+/// A scrollable native list keeps long tvOS option sets readable.
+struct OptionPicker: View {
+    let title: String
+    @Binding var selection: String
+    let options: [SourceOption]
+    @State private var presented = false
+    var body: some View {
+        Button {
+            presented = true
+        } label: {
+            HStack {
+                Text("\(title)：\(options.first { $0.id == selection }?.title ?? "")")
+                Image(systemName: "chevron.down")
+            }
+        }
+        .accessibilityIdentifier("filter.\(title)")
+        .sheet(isPresented: $presented) {
+            NavigationStack {
+                List(options) { option in
+                    Button {
+                        selection = option.id
+                        presented = false
+                    } label: {
+                        HStack {
+                            Text(option.title)
+                            Spacer()
+                            if option.id == selection { Image(systemName: "checkmark") }
+                        }
+                    }
+                }.navigationTitle(title)
+            }
+        }
     }
 }

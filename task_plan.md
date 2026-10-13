@@ -14,10 +14,10 @@ Constraints honored: no simulator download or device installation; no credential
 - [x] Fixture + live tests, generic build, README and local commit
 
 # Apple TV device validation
-- [ ] Confirm automatic signing and register paired TV
+- [x] Confirm automatic signing and register paired TV
 - [x] Add remote-driven XCUITest target and test-only muted playback progress
-- [ ] Run device tests, export and inspect all named screenshots
-- [ ] Fix observed issues and rerun affected tests
-- [ ] Commit and leave normal signed app installed (no push)
+- [x] Run device tests, export and inspect all named screenshots
+- [x] Fix observed issues and rerun affected tests
+- [x] Commit tested changes (no push); normal install receipt is recorded separately in artifacts/device-install.log
 
-Device phase blocked: Xcode has no logged-in Apple Accounts and no tvOS provisioning profiles. Await account login before any install/test/screenshot claim.
+Device phase resumed with user-authorized API-key provisioning. Key material is referenced only through local path/environment; no key IDs or issuer IDs are tracked.

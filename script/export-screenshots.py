@@ -15,7 +15,7 @@ export.mkdir(parents=True, exist_ok=True)
 output.mkdir(parents=True, exist_ok=True)
 subprocess.run(['xcrun', 'xcresulttool', 'export', 'attachments', '--path', str(result), '--output-path', str(export)], check=True)
 manifest = json.loads((export / 'manifest.json').read_text())
-index = []
+index = json.loads((output / "index.json").read_text()) if (output / "index.json").exists() else []
 for test in manifest:
     for attachment in test['attachments']:
         source = export / attachment['exportedFileName']
@@ -25,6 +25,7 @@ for test in manifest:
         name = match.group(1) if match else f'additional-{len(index) + 1:03d}'
         destination = output / (name + source.suffix.lower())
         shutil.copy2(source, destination)
+        index = [item for item in index if item['name'] != name]
         index.append({'test': test['testIdentifier'], 'name': name, 'path': str(destination), 'source': str(source)})
 (output / 'index.json').write_text(json.dumps(index, indent=2) + '\n')
 print('\n'.join(item['path'] for item in index))

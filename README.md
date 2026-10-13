@@ -23,7 +23,7 @@ xcodebuild -project Shelf.xcodeproj -scheme Shelf \
   -derivedDataPath DerivedData CODE_SIGNING_ALLOWED=NO build
 ```
 
-Generic 编译不需要 tvOS 模拟器运行时。本次未下载运行时、未安装到真机；构建产物在 `DerivedData/Build/Products/Debug-appletvsimulator/Shelf.app`。`DerivedData` 和 SwiftPM `.build` 均不入 git，可按需删除释放磁盘。
+Generic 编译不需要 tvOS 模拟器运行时。未下载模拟器运行时；构建产物在 `DerivedData/Build/Products/Debug-appletvsimulator/Shelf.app`。`DerivedData` 和 SwiftPM `.build` 均不入 git，可按需删除释放磁盘。
 
 ## 签名与 Apple TV 安装
 
@@ -33,7 +33,7 @@ Generic 编译不需要 tvOS 模拟器运行时。本次未下载运行时、未
 - Xcode 27 使用 **Xcode → Open Developer Tool → Device Hub**（或运行目标菜单里的 Manage Devices），添加并配对 Apple TV，输入电视显示的配对码。按 Xcode/设备提示完成开发准备。
 - 将运行目标选为该 Apple TV，点击 Run。Xcode 注册设备并生成开发 provisioning profile；以后签名/profile 过期时重新构建安装。
 
-官方说明：[运行到设备](https://developer.apple.com/documentation/xcode/running-your-app-on-simulated-or-physical-devices)、[Device Hub 配对](https://developer.apple.com/documentation/xcode/pairing-your-devices-with-your-mac)。本项目尚未进行设备配对、开发签名或真机运行验证。
+官方说明：[运行到设备](https://developer.apple.com/documentation/xcode/running-your-app-on-simulated-or-physical-devices)、[Device Hub 配对](https://developer.apple.com/documentation/xcode/pairing-your-devices-with-your-mac)。已使用自动 provisioning 在 Apple TV 4K 第三代 / tvOS 27 上完成真机 UI 测试。
 
 ## 使用
 
@@ -82,7 +82,7 @@ Generic 编译不需要 tvOS 模拟器运行时。本次未下载运行时、未
 
 ## 验证边界
 
-macOS 核心解析、分页、双页顺序、登录请求/刷新/退出的模拟传输测试，以及真实网络列表/详情/清晰度/视频字节范围/漫画首图和原生解码都可复现。没有用户账号，真实登录和权限内容未验证；没有 tvOS 运行时或配对设备，实际焦点流、画面布局、遥控器手感和 AVPlayer 解码播放须在 Apple TV 验收。现有工程未定制 App Icon/Top Shelf 素材。
+macOS 核心解析、分页、双页顺序、登录请求/刷新/退出的模拟传输测试，以及真实网络列表/详情/清晰度/视频字节范围/漫画首图和原生解码都可复现。没有用户账号，真实登录和权限内容未验证。Apple TV 真机已验证四个 Tab、视频详情、Hanime1 静音短播放、漫画翻页/双页和设置；12 张关键页面截图已逐张检查。现有工程未定制 App Icon/Top Shelf 素材。
 
 ## Apple TV UI 测试
 
@@ -94,19 +94,16 @@ macOS 核心解析、分页、双页顺序、登录请求/刷新/退出的模拟
 ./script/test-device.sh APPLE_TV_UDID -only-testing:ShelfUITests/ShelfUITests/testComicReader
 ```
 
-需要 Xcode Apple Accounts 已登录有权限的开发团队；脚本启用自动 provisioning/设备注册。结果保存到 `artifacts/device-ui-*.xcresult`；截图导出到 `artifacts/screenshots/`，含英文页面名及 `index.json`。`artifacts/` 已忽略。也可单独运行 `python3 script/export-screenshots.py RESULT.xcresult`。
+签名可使用 Xcode Apple Accounts，或设置 `SHELF_AUTH_KEY_PATH`、`SHELF_AUTH_KEY_ID`、`SHELF_AUTH_KEY_ISSUER` 三个环境变量使用 App Store Connect API 密钥。密钥只按本机路径引用，不复制内容；不要把真实标识写入仓库。脚本启用自动 provisioning/设备注册，真机 DerivedData 在 `artifacts/DerivedDataDevice`。结果保存到 `artifacts/device-ui-*.xcresult`；截图导出到 `artifacts/screenshots/`，含英文页面名及 `index.json`。`artifacts/` 已忽略。也可单独运行 `python3 script/export-screenshots.py RESULT.xcresult`。
 
 Debug App 同时带 `--ui-testing --mute-playback` 启动参数时静音，显示供测试读取的实际 AVPlayer 状态和播放时间；正常启动不静音、不显示测试状态。Release 不启用测试参数。
 
-真机测试完成、截图检查和提交之后，构建并留下正常签名 App：
+真机测试完成、截图检查和提交之后，使用相同签名环境变量构建并留下正常签名 App：
 
 ```sh
-xcodebuild -project Shelf.xcodeproj -scheme Shelf -configuration Debug \
-  -sdk appletvos -destination 'platform=tvOS,id=APPLE_TV_UDID' \
-  -derivedDataPath DerivedData -allowProvisioningUpdates \
-  -allowProvisioningDeviceRegistration build
-xcrun devicectl device install app --device APPLE_TV_UDID \
-  DerivedData/Build/Products/Debug-appletvos/Shelf.app
+./script/install-device.sh APPLE_TV_UDID
 ```
 
-截至本次准备工作，UI 测试包已通过 generic SDK `build-for-testing`；真机测试仍被 Xcode `No Accounts` / 缺少 provisioning profile 阻塞，尚未取得任何实机路径或截图验收结果。
+安装脚本在 Info.plist 写入 `ShelfCommit`，build number 为 git commit 数量，便于核对版本；安装后不自动播放。
+
+2026-10-14 真机回归：4 项 UI 测试全部通过（95.3 秒），AVPlayer 时钟从 1.0 秒前进到 3.5 秒且 muted=true。结果为 `artifacts/device-ui-20261014-031854.xcresult`；12 张截图在 `artifacts/screenshots/`。已修复多选项筛选文字挤压、详情标题滚出屏幕、卡片两行标题高度不足，以及阅读器工具栏被背景画布抢焦点的问题。

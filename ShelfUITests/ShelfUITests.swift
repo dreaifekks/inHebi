@@ -60,6 +60,10 @@ import XCTest
         focus(app.buttons["video.card"].firstMatch)
         waitForCover()
         screenshot("02-hanime-list")
+        select(app.buttons["filter.分类"])
+        XCTAssertTrue(app.buttons["Motion Anime"].waitForExistence(timeout: 10))
+        screenshot("12-hanime-categories")
+        remote.press(.menu)
         tab("漫画")
         XCTAssertTrue(app.buttons["album.card"].firstMatch.waitForExistence(timeout: 45))
         focus(app.buttons["album.card"].firstMatch)
@@ -130,7 +134,8 @@ import XCTest
         select(app.buttons["reader.spread"])
         wait("Spread mode did not activate") { page.label.hasPrefix("3–4 /") }
         remote.press(.menu)
-        wait("Both spread images did not load") { self.app.images.matching(identifier: "image.loaded").count == 2 }
+        let canvas = app.descendants(matching: .any).matching(identifier: "reader.canvas").firstMatch
+        wait("Both spread images did not load") { canvas.images.matching(identifier: "image.loaded").count == 2 }
         screenshot("11-reader-spread")
         remote.press(.menu)
         XCTAssertTrue(app.buttons["album.read"].waitForExistence(timeout: 15))

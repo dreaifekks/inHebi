@@ -12,28 +12,34 @@ struct VideoDetail: View {
     @State private var loading = true
     @State private var preparing = false
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 30) {
-                if let video {
-                    HStack(alignment: .top, spacing: 50) {
-                        RemoteImage(url: video.thumbnail).frame(width: 620, height: 350)
-                        VStack(alignment: .leading, spacing: 24) {
-                            Text(video.title).font(.title.bold()).accessibilityIdentifier("video.title")
+        VStack(alignment: .leading, spacing: 30) {
+            if let video {
+                HStack(alignment: .top, spacing: 50) {
+                    RemoteImage(url: video.thumbnail).frame(width: 560, height: 315)
+                    VStack(alignment: .leading, spacing: 20) {
+                        Text(video.title).font(.title2.bold()).fixedSize(horizontal: false, vertical: true)
+                            .accessibilityIdentifier("video.title")
+                        HStack(spacing: 30) {
                             Text(video.author).foregroundStyle(.secondary)
                             if let duration = video.duration { Text("\(Int(duration) / 60):\(String(format: "%02d", Int(duration) % 60))").monospacedDigit() }
-                            if !streams.isEmpty {
-                                Picker("清晰度", selection: $selected) { ForEach(streams) { Text($0.name).tag($0.name) } }
-                                Button { Task { await play() } } label: { Label(preparing ? "准备播放…" : "播放", systemImage: "play.fill") }.disabled(preparing).accessibilityIdentifier("video.play")
-                            }
+                        }
+                        if !streams.isEmpty {
+                            Picker("清晰度", selection: $selected) { ForEach(streams) { Text($0.name).tag($0.name) } }
+                            Button { Task { await play() } } label: { Label(preparing ? "准备播放…" : "播放", systemImage: "play.fill") }
+                                .disabled(preparing).accessibilityIdentifier("video.play")
                         }
                     }
-                    Text(video.tags.joined(separator: "  ·  ")).font(.callout).foregroundStyle(.cyan)
-                    if !video.description.isEmpty { Text(video.description).font(.body).focusable() }
                 }
-                if loading { ProgressView("加载视频…") }
-                if let error { Text(error).foregroundStyle(.orange); Button("重试") { Task { await load() } } }
-            }.padding(70)
-        }
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 20) {
+                        Text(video.tags.joined(separator: "  ·  ")).font(.callout).foregroundStyle(.cyan)
+                        if !video.description.isEmpty { Text(video.description).font(.body).focusable() }
+                    }.frame(maxWidth: .infinity, alignment: .leading)
+                }
+            }
+            if loading { ProgressView("加载视频…") }
+            if let error { Text(error).foregroundStyle(.orange); Button("重试") { Task { await load() } } }
+        }.padding(70)
         .task { await load() }
         .fullScreenCover(item: $playback) { PlayerScreen(stream: $0) }
     }

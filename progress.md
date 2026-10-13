@@ -73,3 +73,25 @@ Testing cancelled because the build failed.
 - `xcresulttool export attachments` succeeded with an empty manifest; artifacts/screenshots/index.json is `[]`, so no screenshots are claimed or visually reviewed.
 - `xcrun devicectl device info apps --device <Apple TV 设备标识> --bundle-id com.dreaife.shelf` returned no app. No Shelf build is installed on the TV by this task.
 - Prepared code is committed separately; device execution, visual fixes if any, and final signed installation must resume after account login.
+
+## Device validation resumed with API-key provisioning
+
+- User authorized App Store Connect API-key use exclusively for this project's signing and device registration. Script consumes SHELF_AUTH_KEY_PATH, SHELF_AUTH_KEY_ID and SHELF_AUTH_KEY_ISSUER from the environment; no key contents or identifiers are stored in tracked files.
+- Device build products now use artifacts/DerivedDataDevice. Starting with the iwara detail test to establish actual focus hierarchy before running all paths.
+
+## Final TV test and visual verification
+
+- `./script/test-device.sh DEVICE_UDID` with API-key environment: **4 tests passed, 0 failures**, 95.253 seconds on AppleTV14,1 / tvOS 27. Result: artifacts/device-ui-20261014-031854.xcresult; log: artifacts/device-fixes-run.log.
+- Paths: tabs/settings; iwara list -> detail; Hanime1 list -> detail -> actual muted AVPlayer playback; wnacg list -> album -> page 1 -> page 3 -> spread -> exit.
+- Actual playback evidence: AVPlayer playing, muted=true, time 1.0 -> 3.5 seconds. Playback is terminated after the short sample. Every test terminates the app in teardown.
+- All 12 exported named screenshots were individually inspected after fixes:
+  - 01-home-iwara, 02-hanime-list, 03-comic-list: content and covers loaded, focused card outline/scale visible. Current filters readable. Card titles occupy two lines; longer titles retain intentional ellipsis, full titles visible in details.
+  - 04-settings: email focus visible, labels/description readable, no overlap.
+  - 05-iwara-detail, 06-hanime-detail: full tested titles now on-screen with cover, author/duration, quality and Play; long description independently scrolls.
+  - 07-hanime-playing: actual video frame and player clock shown; test-only overlay confirms muted state.
+  - 08-album-detail: full tested title, page count, cover and Read visible.
+  - 09-reader-single, 10-reader-page-three: image fits full screen height with side letterboxing; page indicator advances.
+  - 11-reader-spread: right image matches page three screenshot, left image is next page; both height-fit, no overlap.
+  - 12-hanime-categories: native scrollable option list has full labels and visible focus/checkmark.
+- Fixed the observed layout/focus defects and reran all four affected paths successfully. No remaining blocking visual defect in these screenshots. Real iwara account login still requires the user.
+- Normal development installation is performed from the committed code by script/install-device.sh; it embeds ShelfCommit and build number. Its receipt/log and final metadata are under ignored artifacts/, so no credential identifiers or screenshot files enter git.

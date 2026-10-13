@@ -21,3 +21,10 @@
 - Pagination: page=1 based; next link rel=next. query/genre/sort can be combined. Tags use repeated tags[]; year/month are also form controls, outside requested v1 UI.
 - Horizontal cards use .horizontal-card/.title/.duration; portrait cards use .home-rows-videos-title. Ad cards link off-site; only watch links with images are collected and IDs deduplicated.
 - Ten actual genres each sampled one watch page (plus supplied 408316): all contain video#player source MP4s; 480/720/1080 variants, often 720 then 480 then 1080. No m3u8 or script-only stream observed in this sample. No speculative JS stream fallback added.
+
+## Real Apple TV UI findings
+- API-key automatic provisioning succeeded for app and UI runner using the existing ALZ45VUZFN team; the key is only referenced through environment-supplied command arguments.
+- First iwara detail path passed on AppleTV14,1. Screenshot showed the header partially scrolled off-screen when focusing Play with a long description; header is now fixed, description independently scrolls.
+- Initial Hanime1 playback passed: AVPlayer reported playing, muted=true, clock advanced 0.5 -> 3.0 seconds; test terminated playback after screenshot.
+- Initial tabs/settings passed. Screenshots showed many-option tvOS default Pickers squeezing genre/category labels into ellipses. Replaced browse filters with native List selection sheets. Increased card title space to two lines.
+- Initial comic single-page and page-three screenshots showed height-fit rendering. Toolbar selection failed because the full-screen focusable canvas intercepted horizontal movement; canvas is now non-focusable while controls are visible.

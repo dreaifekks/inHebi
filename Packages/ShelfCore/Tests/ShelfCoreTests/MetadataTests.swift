@@ -22,7 +22,7 @@ final class MetadataTests: XCTestCase {
         XCTAssertEqual(video.createdAt, "2026-10-10")
         XCTAssertEqual(video.categoryText, "3DCG")
         XCTAssertTrue(video.feedbackText?.contains("8906") == true)
-        XCTAssertTrue(video.authorSectionTitle.contains("Ubermation"))
+        XCTAssertEqual(video.authorSectionTitle, "社團 Ubermation")
         XCTAssertFalse(video.authorVideos.isEmpty)
         XCTAssertEqual(video.relatedVideos.count, 12)
         XCTAssertTrue((video.authorVideos + video.relatedVideos).allSatisfy { !$0.title.isEmpty && $0.thumbnail != nil && $0.id != video.id })

@@ -100,7 +100,7 @@ public struct Hanime1Source: VideoSource {
         video.feedbackText = try doc.select("#video-like-btn").text().replacingOccurrences(of: "thumb_up", with: "").trimmingCharacters(in: .whitespaces)
         if let playlist = try doc.select("#playlist-scroll").first() {
             video.authorVideos = try parseCards(playlist).filter { $0.id != id }
-            video.authorSectionTitle = try doc.select("#playlist-top-block h4").text()
+            video.authorSectionTitle = try doc.select("#playlist-top-block h4").first()?.text() ?? "作者的其他视频"
         }
         if let related = try doc.select("#related-tabcontent").first() {
             video.relatedVideos = Array(try parseCards(related).filter { $0.id != id }.prefix(12))

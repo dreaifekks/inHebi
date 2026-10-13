@@ -7,4 +7,4 @@ if [[ "${SHELF_LIVE_TESTS:-0}" == 1 ]]; then
 fi
 xcodebuild -project Shelf.xcodeproj -scheme Shelf \
   -sdk appletvsimulator -destination 'generic/platform=tvOS Simulator' \
-  -derivedDataPath DerivedData CODE_SIGNING_ALLOWED=NO build
+  -derivedDataPath artifacts/DerivedDataSimulator CODE_SIGNING_ALLOWED=NO build

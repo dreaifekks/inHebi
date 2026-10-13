@@ -91,9 +91,6 @@ public actor IwaraSource: VideoSource {
         guard let author = video.authorID else { return [] }
         return try await filteredVideos(.author(author), page: 0).items.filter { $0.id != video.id }.prefix(12).map { $0 }
     }
-    public func relatedVideos(for video: Video) async throws -> [Video] {
-        try Self.parseList(await api("video/\(video.id)/related", query: [.init(name: "limit", value: "12")])).items.filter { $0.id != video.id }
-    }
     public func video(id: String) async throws -> Video { try Self.parseVideo(await api("video/\(id)")) }
     public func streams(for video: Video) async throws -> [VideoStream] {
         guard let url = video.fileURL else { throw ShelfError.message("该视频没有可播放文件（可能为外站嵌入视频）") }

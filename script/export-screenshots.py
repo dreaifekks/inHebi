@@ -16,13 +16,16 @@ output.mkdir(parents=True, exist_ok=True)
 subprocess.run(['xcrun', 'xcresulttool', 'export', 'attachments', '--path', str(result), '--output-path', str(export)], check=True)
 manifest = json.loads((export / 'manifest.json').read_text())
 index = json.loads((output / "index.json").read_text()) if (output / "index.json").exists() else []
+index = [item for item in index if not item["name"].startswith("additional-")]
 for test in manifest:
     for attachment in test['attachments']:
         source = export / attachment['exportedFileName']
         if source.suffix.lower() not in ['.png', '.jpg', '.jpeg', '.heic']:
             continue
         match = re.search(r'\b(\d{2}-[a-z]+(?:-[a-z]+)*)', attachment['suggestedHumanReadableName'])
-        name = match.group(1) if match else f'additional-{len(index) + 1:03d}'
+        if not match:
+            continue  # Automatic failure frames stay in the raw attachment directory.
+        name = match.group(1)
         destination = output / (name + source.suffix.lower())
         shutil.copy2(source, destination)
         index = [item for item in index if item['name'] != name]

@@ -12,7 +12,7 @@ import Observation
     public init() { }
     public func load(reset: Bool = false, key: String, first: Int, fetch: (Int) async throws -> Page<Item>) async {
         if reset && loadedKey == key && !items.isEmpty { return }
-        if loadedKey != key {
+        if loadedKey != key || (reset && items.isEmpty) {
             generation += 1; items = []; next = first; loading = false; loadedKey = key
         }
         guard !loading, let page = next else { return }

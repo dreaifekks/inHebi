@@ -33,15 +33,13 @@ import ImageIO
         let tag = try XCTUnwrap(detail.tags.first)
         let byTag = try await source.filteredVideos(.tag(tag), page: 0)
         XCTAssertTrue(byTag.items.allSatisfy { $0.tags.contains(tag) })
-        let related = try await source.relatedVideos(for: detail)
-        XCTAssertFalse(related.isEmpty)
         let expired = IwaraSource()
         await expired.setUserToken("fixture-invalid-user-token")
         let guest = try await expired.videos()
         let hasSession = await expired.hasSession
         XCTAssertFalse(hasSession)
         XCTAssertFalse(guest.items.isEmpty)
-        print("LIVE iwara author/tag/related and expired-session guest fallback OK")
+        print("LIVE iwara author/tag and expired-session guest fallback OK")
     }
     func testWnacgLive() async throws {
         try enabled()

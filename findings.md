@@ -28,3 +28,9 @@
 - Initial Hanime1 playback passed: AVPlayer reported playing, muted=true, clock advanced 0.5 -> 3.0 seconds; test terminated playback after screenshot.
 - Initial tabs/settings passed. Screenshots showed many-option tvOS default Pickers squeezing genre/category labels into ellipses. Replaced browse filters with native List selection sheets. Increased card title space to two lines.
 - Initial comic single-page and page-three screenshots showed height-fit rendering. Toolbar selection failed because the full-screen focusable canvas intercepted horizontal movement; canvas is now non-focusable while controls are visible.
+
+## Redesign final corrections
+- Root Tab visibility must follow reader activity, otherwise the browser's visible preference overrides the pushed reader. The reader uses NavigationStack for reliable return focus.
+- API discovery from stage 2 was not universally stable: iwara related returned repeated HTTP 500 for current newest videos, so the feature is disabled. Author and tag browsing remain verified.
+- Native keyboard submission must target its actual completion button. UI tests now require results inside search.screen and zero results while merely typing, preventing underlying-list false positives.
+- Final verification details, native alternatives and scope exceptions are recorded in progress.md; all generated media, test results and screenshots remain ignored under artifacts/.

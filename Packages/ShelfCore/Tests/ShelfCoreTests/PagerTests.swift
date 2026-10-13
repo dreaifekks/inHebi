@@ -27,4 +27,12 @@ import XCTest
         await pager.load(reset: true, key: "all", first: 1) { page in Page(items: [Item(id: page)], nextPage: nil) }
         XCTAssertEqual(pager.items.map(\.id), [1])
     }
+    func testEmptyCompletedPageCanReloadOnReappearance() async {
+        let pager = Pager<Item>()
+        await pager.load(reset: true, key: "empty", first: 0) { _ in Page(items: [], nextPage: nil) }
+        await pager.load(reset: true, key: "empty", first: 0) { _ in Page(items: [Item(id: 1)], nextPage: nil) }
+        XCTAssertEqual(pager.items.map(\.id), [1])
+        XCTAssertEqual(pager.requestCount, 2)
+    }
+
 }

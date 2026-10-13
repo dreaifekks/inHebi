@@ -113,3 +113,60 @@ Testing cancelled because the build failed.
 - Implemented rich fixed video headers, actionable description/tags/authors and media rails; rich album details/previews; bounded reader progress, thumbnail jumping, remembered spreads/direction; actual end-of-item dismissal and external player metadata.
 - Layout values and decode caps are centralized in Shelf/Layout.swift. Test preferences are isolated from normal user preferences.
 - Generic tvOS application build and build-for-testing both passed. Device behavior validation follows; optional borderless/searchScopes are exposed only by a Debug test probe route, not normal product navigation.
+
+## Redesign device findings
+- Device asleep initially; XCUIRemote Home before app launch wakes it. No simulator runtime was installed.
+- Verified 4-column layout: image 404x227.5pt, complete cell ~349.5pt; eight complete cells fit the first screen. Retained 48 loaded items through detail pop and Tab changes with unchanged request count, original focused ID and frame; automatic next-page loading passed.
+- Native safeAreaInset did not contract with hidden Tab bar and focused-header behavior disturbed scrolling. Replaced it with an independent fixed header above the vertical ScrollView. Native Menu returns to the Tab bar; FocusState handoff makes Down target the strip.
+- Native conditional bordered/borderedProminent style swaps lost chip focus. Keep one native prominent style and distinguish selected with cyan plus checkmark; explicit FocusState horizontal routing keeps the scrolling chip strip traversable without loading.
+- Sheets visually focused the correct row; XCTest must inspect the focused row's descendant button rather than the button's hasFocus alone. Current selection reopening passed.
+- Native .card image-only labels and .borderless image-plus-title were both probed on device; borderless floats the image. Product retains the specified .card image-only composition.
+- Native searchable and searchScopes render on pushed pages, but native searchable did not submit via remote Down or Return on this device. Product uses a TextField only on the search subpage; actual MMD submit -> results passed. searchScopes remains Debug probe only.
+- Actual iwara and Hanime1 playback advanced with muted=true; Menu exit stopped AVPlayer. Seeking to the final second exercised the real end-of-item notification and returned to detail. AVKit Info shows title/artwork; artist also supplied as description for visibility.
+- Reader jump 3 -> 5, continued turn to 6, double pages 6-7, and reverse direction all passed. SwiftUI fullScreenCover return produced unreliable focus; reader switched to a full-screen navigation destination with hidden Tab bar, now under validation.
+- Source metadata snapshot correction: Hanime duplicated responsive playlist headings; use first heading. Detail titles keep their vertical layout, descriptions explicitly align left.
+
+
+## Redesign acceptance evidence
+
+- Core final offline command: `swift test --package-path Packages/ShelfCore` — 26 tests, 3 opt-in live tests skipped, zero failures (`artifacts/redesign-offline-final.log`).
+- Core final live command: `SHELF_LIVE_TESTS=1 swift test --package-path Packages/ShelfCore` — 26 tests, zero skipped, zero failures (`artifacts/redesign-live-final.log`). Hanime1 and iwara signed video URLs returned 206; wnacg first page image returned 200 and decoded. New metadata/hierarchy/previews use real saved fixtures.
+- Corrections to stage 2 above: iwara related worked for the old sample, but repeated requests for current newest videos returned HTTP 500. Removed that source capability; author and tag matching remain validated. This is an endpoint limitation, not a hidden fallback.
+- All five review fixes are covered: Pager key and cancellation regressions; user-token 403 -> guest and expiration notification; expired JWT refresh despite HTTP 200; AlbumSource owns start page and Referer; URLSession consumer cancellation reaches URLProtocol.stopLoading.
+- Main device acceptance completed 11 tests with zero failures, then screenshot review tightened search assertions to scope results to the pushed search page (underlying list no longer counts). Actual keyboard Search completion now passes. Reader toolbar thumbnail height and full-width focus section were corrected so a thumbnail near the left edge can reach the lower buttons.
+- Screenshot review also found the root browser's visible Tab preference overriding the reader's hidden preference. Reader activity now controls the root preference, keeping the navigation-based reader full-screen while preserving card focus on return. Final verification follows below.
+
+### UX spec section 14
+
+| Item | Actual device result / adopted implementation |
+| --- | --- |
+| 1. top safeAreaInset | Did not contract/scroll as required with tvOS Tab behavior. Use a fixed sibling header above ScrollView; 80pt accommodates native buttons. First screen contains eight complete landscape cells. |
+| 2. Menu -> Tab -> Down | Native Menu reaches Tab. Explicit FocusState handoff makes Down enter the fixed strip. |
+| 3. default focus | Sheet selected row and async-loaded Play/Read focus pass. Tests inspect native row-container focus where applicable. |
+| 4. card/borderless | Both rendered on device. borderless floats image; production keeps card on image-only label, text outside. |
+| 5. Play/Pause on card | Delivered on video and album cards; starts actual player/reader. |
+| 6. return focus | Native restoration alone was insufficient across Tab/full-screen reader returns. Retain key/items, numeric scroll offset and card ID; explicitly restore. Reader uses a navigation destination; video modal returns focus to Play/card. |
+| 7. search | searchable/searchScopes render, but searchable keyboard did not submit reliably. Product uses TextField on a dedicated search page and the native keyboard completion button. Scopes remain test-probe-only. |
+| 8. data endpoints/images | iwara author/tag work; related disabled for repeated 500 on current videos. wnacg tag pagination is albums-index-page-N-tag-TAG.html and page 2 works. iwara large sample 654x490, wnacg thumbnail 300x400; five comic columns retained after inspection. |
+
+### Deliberate scope and visual limits
+
+- Landscape image 344x194 -> 404x227.5pt: about 38% larger area; image/cell height share about 53% -> 65%. Four columns and two complete rows. Portrait lists remain five columns.
+- Rich video details include available author/date/duration/resolution/statistics/rating, expandable description, tags, creator rail; Hanime1 also related rail. Album details include category/date/pages/tags, first-page preview strip and Continue page action.
+- Long card titles retain the specified two-line ellipsis, long detail titles up to three lines. No overlapping controls in reviewed screens. Source thumbnails can be soft, especially enlarged wnacg detail cover; no artificial upscaling is attempted.
+- Unselected P2 remains omitted: playback resume, search history, product searchScopes, subscriptions/rankings, file size, additional comment details, reader page-number auto-fade and specialized long-strip reader. The user specifically requested live validation of author/tag endpoints, so working tag navigation is enabled.
+- Existing Keychain login was preserved and restored; no real password was entered by the agent. Playback verification remains muted and brief. Every test terminates the app, including failures.
+
+
+## Redesign final run and screenshot sign-off
+
+- Final complete device command: `./script/test-device.sh "$SHELF_DEVICE_ID"` (API signing values supplied via environment) — **11 tests, 0 failures, 375.039 seconds**. Log: `artifacts/redesign-device-final.log`; result: `artifacts/device-ui-20261014-063102.xcresult`.
+- Added only a screenshot attachment for the open reader toolbar and reran the affected reader path — **1 test, 0 failures, 56.554 seconds**, log `artifacts/redesign-reader-toolbar-capture.log`. No app source changed after the complete run.
+- Latest generic Simulator SDK build: **BUILD SUCCEEDED**, `artifacts/redesign-simulator-final.log`. No simulator runtime was downloaded. Core final results remain 26 tests, zero failures with live mode enabled.
+- All **30 named final PNGs**, 01 through 30, were opened and inspected individually after export. All real content screens contain loaded covers/pages. Landscape first screens show two complete rows; image-only card focus, selected strip checkmarks, default Play/Read focus and current sheet selection are visible. There are no unintended overlapping labels or controls; the documented two/three-line truncation remains for unusually long source titles.
+- Screenshots 06/07/09 confirm the same scrolled card and content before detail, after return and after a Tab round-trip; assertions additionally verify item count/request count and frame within 4pt. 08 shows Menu -> Tab -> Down strip focus.
+- 10/14 show actual iwara/Hanime1 video frames and muted advancing clocks; 15 shows end-of-item return; 27 shows native title/author/artwork. Menu exits assert inactive player and stable stopped clock.
+- 17/18 show full-height single-page fit; 19 right-opening spread places page 6 on the right (matches 18); 29/30 left-opening spread places page 2 on the left (matches 29). No Tab bar remains over the reader. 26 shows loaded jump thumbnails, current page focus and the lower toolbar without the previous excessive gap.
+- 20 confirms the saved-page Read label; 21 the direction setting; 22-24 the optional native component probes; 25 is the actual pushed search result grid; 28 is the five-column portrait layout.
+- Remaining user verification: fresh password login, normal audio output, and living-room viewing comfort. Existing Keychain login was not removed; UI preferences were isolated.
+- Post-commit normal installation uses `script/install-device.sh`. The exact committed revision, signed bundle metadata and device installation receipt are verified into ignored `artifacts/final-verification.json`, avoiding a self-referential commit or tracked device identifiers.

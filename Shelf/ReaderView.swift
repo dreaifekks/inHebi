@@ -134,7 +134,7 @@ struct ReaderView: View {
         focus = nil
         appModel.saveReadingPage(page, album: session.albumID)
       }
-      .onChange(of: page) { _, value in appModel.saveReadingPage(value, album: session.albumID) }
+      .onChange(of: page) { _, value in appModel.updateReadingPage(value, album: session.albumID) }
       .onChange(of: controls) { _, value in if !value { focus = .canvas } }
       .onExitCommand { if controls { controls = false } else { close() } }
       .onPlayPauseCommand { controls.toggle() }
@@ -156,7 +156,6 @@ struct ReaderView: View {
       ? "\(page + 1)–\(last) / \(session.pages.count)" : "\(page + 1) / \(session.pages.count)"
   }
   private func close() {
-    appModel.saveReadingPage(page, album: session.albumID)
     focus = nil
     dismiss()
   }

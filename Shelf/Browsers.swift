@@ -2,7 +2,6 @@ import ShelfCore
 import SwiftUI
 
 struct VideoBrowser: View {
-  @Environment(AppModel.self) private var model
   let source: any VideoSource
   let authRevision: Int
   var searchQuery: String?
@@ -52,7 +51,10 @@ struct VideoBrowser: View {
       filterAction: changeFilter, key: key, loading: pager.loading, error: pager.error,
       hasNext: pager.next != nil, requestCount: pager.requestCount, loadedKey: pager.loadedKey,
       preparing: preparing, quickError: quickError, failedID: failedID,
-      destination: { VideoDetail(source: source, id: $0) },
+      destination: { id in
+        VideoDetail(source: source, id: id,
+          cardMetadata: pager.items.first { $0.id == id }.map { LibraryMetadata(video: $0, source: source.name) })
+      },
       search: {
         VideoSearchScreen(source: source, category: source.categories.isEmpty ? "" : chip)
       },
@@ -99,7 +101,8 @@ struct VideoBrowser: View {
       guard let stream = try await source.streams(for: video).first else {
         throw ShelfError.message("没有可播放的清晰度")
       }
-      playback = VideoPlayback(video: video, stream: stream, sourceName: source.name)
+      playback = VideoPlayback(video: video, stream: stream, sourceName: source.name,
+        cardMetadata: pager.items.first { $0.id == id }.map { LibraryMetadata(video: $0, source: source.name) })
     } catch {
       failedID = id
       quickError = error.localizedDescription
@@ -137,7 +140,9 @@ struct AlbumBrowser: View {
       preparing: preparing, quickError: quickError, failedID: failedID,
       destination: { AlbumDetail(source: source, id: $0) },
       search: { AlbumSearchScreen(source: source) },
-      quick: { id in Task { await quickRead(id) } },
+      quick: { id in
+        if let album = pager.items.first(where: { $0.id == id }) { Task { await quickRead(album) } }
+      },
       loadMore: {
         if categoryError != nil { await loadCategories() } else { await load() }
       }
@@ -164,14 +169,14 @@ struct AlbumBrowser: View {
       return result
     }
   }
-  private func quickRead(_ id: String) async {
+  private func quickRead(_ album: Album) async {
+    let id = album.id
     guard preparing == nil else { return }
     preparing = id
     failedID = nil
     defer { preparing = nil }
     do {
       let pages = try await source.pages(id: id)
-      let album = try await source.album(id: id)
       try model.library.recordVisit(LibraryMetadata(album: album, source: source.name))
       reading = ReadingSession(
         pages: pages, albumID: id, referer: source.imageReferer(albumID: id),

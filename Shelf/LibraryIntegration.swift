@@ -14,8 +14,14 @@ extension AppModel {
       return 0
     }
   }
+  func updateReadingPage(_ page: Int, album: String) {
+    libraryAction { try $0.updateReadingPage(page, key: "wnacg:" + album) }
+  }
   func saveReadingPage(_ page: Int, album: String) {
-    libraryAction { try $0.saveReadingPage(page, key: "wnacg:" + album) }
+    libraryAction {
+      try $0.updateReadingPage(page, key: "wnacg:" + album)
+      try $0.save()
+    }
   }
   func refreshCloudAccount() async {
     do {
@@ -64,14 +70,16 @@ struct FavoriteButton: View {
     let key = metadata.key
     _items = Query(filter: #Predicate<SavedMediaItem> { $0.key == key })
   }
-  private var selected: Bool { items.contains { !($0.folders ?? []).isEmpty } }
+  private var folderIDs: Set<String> { Set(items.flatMap { ($0.folders ?? []).map(\.folderID) }) }
+  private var selected: Bool { folderIDs.contains("default") }
+  private var title: String { folderIDs.isEmpty ? "收藏" : "收藏 · \(folderIDs.count) 个收藏夹" }
   var body: some View {
     Button {
       model.libraryAction { try $0.toggleDefault(metadata) }
     } label: {
-      Image(systemName: selected ? "star.fill" : "star")
+      Label(title, systemImage: selected ? "star.fill" : "star")
     }
-    .accessibilityLabel("收藏")
+    .accessibilityLabel(title)
     .accessibilityValue(selected ? "已收藏" : "未收藏")
     .accessibilityIdentifier("favorite.toggle")
     .onLongPressGesture {
@@ -88,11 +96,19 @@ struct FolderPicker: View {
   @Environment(\.dismiss) private var dismiss
   @Query(sort: \FavoriteFolder.createdAt) private var folders: [FavoriteFolder]
   @State private var creating = false
+  @Query private var items: [SavedMediaItem]
+  init(metadata: LibraryMetadata) {
+    self.metadata = metadata
+    let key = metadata.key
+    _items = Query(filter: #Predicate<SavedMediaItem> { $0.key == key })
+  }
   var body: some View {
     NavigationStack {
       List {
         ForEach(folders) { folder in
-          let selected = (folder.items ?? []).contains { $0.key == metadata.key }
+          let selected = items.contains {
+            ($0.folders ?? []).contains { $0.folderID == folder.folderID }
+          }
           Button {
             model.libraryAction { try $0.toggle(metadata, in: folder) }
           } label: {

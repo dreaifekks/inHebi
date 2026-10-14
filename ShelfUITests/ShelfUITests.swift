@@ -170,7 +170,20 @@ import XCTest
     let created = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'favorite.folder.' AND label CONTAINS 'UITest'")).firstMatch
     XCTAssertTrue(created.waitForExistence(timeout: 10))
     XCTAssertEqual(created.value as? String, "已加入")
+    select(defaultFolder)
+    wait("Default membership must refresh immediately") { defaultFolder.value as? String == "未加入" }
     select(app.buttons["folder.done"])
+    wait("Only other folders must leave an empty star with a count") {
+      star.value as? String == "未收藏" && star.label == "收藏 · 1 个收藏夹"
+    }
+    select(star)
+    wait("Short press must show a filled default star") {
+      star.value as? String == "已收藏" && star.label == "收藏 · 2 个收藏夹"
+    }
+    remote.press(.select)
+    wait("Short press must empty the star while retaining other folders") { star.value as? String == "未收藏" }
+    remote.press(.select)
+    wait("Restore default before inspecting both folders") { star.value as? String == "已收藏" }
     tab("我的")
     XCTAssertTrue(app.buttons["chip.history"].waitForExistence(timeout: 10))
     select(app.buttons["chip.default"])
@@ -184,6 +197,83 @@ import XCTest
     wait("Long press removal must empty this folder") { self.cards().count == 0 }
     select(app.buttons["chip.default"])
     XCTAssertTrue(cards().firstMatch.waitForExistence(timeout: 10), "Other folder membership must remain")
+  }
+  func testLibraryFolderRenameAndDelete() {
+    launch()
+    ready()
+    select(cards().firstMatch)
+    select(app.buttons["favorite.toggle"])
+    tab("我的")
+    let chip = app.buttons["chip.default"]
+    select(chip)
+    select(app.buttons["filter.primary"])
+    select(app.buttons["folder.rename"])
+    let field = app.textFields["folder.name"]
+    select(field)
+    app.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: "默认收藏".count))
+    app.typeText("Renamed")
+    remote.press(.down); remote.press(.down); remote.press(.down); remote.press(.select)
+    select(app.buttons["folder.save"])
+    select(app.buttons["folder.manager.done"])
+    wait("Renamed chip must update visible and accessibility titles") { chip.label == "Renamed" }
+    let selectedWidth = chip.frame.width
+    select(app.buttons["chip.history"])
+    XCTAssertEqual(chip.frame.width, selectedWidth, accuracy: 0.5)
+    select(chip)
+    select(app.buttons["filter.primary"])
+    select(app.buttons["folder.delete"])
+    select(app.buttons["folder.delete.confirm"])
+    wait("Deleted chip must disappear and History must take focus") {
+      !chip.exists && self.app.buttons["chip.history"].isSelected && self.app.buttons["chip.history"].hasFocus
+    }
+    XCTAssertEqual(app.buttons["filter.primary"].label, "清空历史")
+    remote.press(.menu)
+    remote.press(.down)
+    wait("Entry guide must target History after deletion") { self.app.buttons["chip.history"].hasFocus }
+  }
+  func testLibraryDetailSurvivesRemovingLastFavorite() {
+    launch()
+    ready()
+    select(cards().firstMatch)
+    select(app.buttons["favorite.toggle"])
+    tab("我的")
+    select(app.buttons["chip.default"])
+    select(cards().firstMatch)
+    let star = app.buttons["favorite.toggle"]
+    select(star)
+    wait("Removing last favorite must keep the detail visible") {
+      self.app.staticTexts["video.title"].exists && star.value as? String == "未收藏"
+    }
+    remote.press(.select, forDuration: 1.2)
+    let folder = app.buttons["favorite.folder.default"]
+    select(folder)
+    wait("Picker must reflect addition") { folder.value as? String == "已加入" }
+    remote.press(.select)
+    wait("Picker and detail must survive removing their originating row") {
+      folder.value as? String == "未加入" && self.app.buttons["folder.done"].exists
+    }
+    select(app.buttons["folder.done"])
+    XCTAssertTrue(app.staticTexts["video.title"].exists)
+    remote.press(.menu)
+    wait("Returning to the folder must show the removed item is gone") { self.cards().count == 0 }
+  }
+  func testLibraryPreservesHanimePortraitCard() {
+    launch()
+    tab("Hanime1")
+    ready()
+    select(app.buttons["chip.裏番"])
+    ready()
+    select(cards().firstMatch)
+    select(app.buttons["favorite.toggle"])
+    tab("我的")
+    select(app.buttons["chip.default"])
+    let card = cards().firstMatch
+    XCTAssertTrue(card.waitForExistence(timeout: 10))
+    XCTAssertEqual(card.frame.width / card.frame.height, 2.0 / 3.0, accuracy: 0.03)
+    select(card)
+    XCTAssertTrue(app.staticTexts["video.title"].waitForExistence(timeout: 30))
+    remote.press(.menu)
+    XCTAssertEqual(cards().firstMatch.frame.width / cards().firstMatch.frame.height, 2.0 / 3.0, accuracy: 0.03)
   }
   func testLibraryVideoHistory() {
     launch()

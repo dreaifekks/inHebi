@@ -5,6 +5,7 @@ struct VideoDetail: View {
   @Environment(AppModel.self) private var model
   let source: any VideoSource
   let id: String
+  var cardMetadata: LibraryMetadata?
   @State private var video: Video?
   @State private var streams: [VideoStream] = []
   @State private var selected = ""
@@ -52,7 +53,7 @@ struct VideoDetail: View {
               Text(statistics(video)).font(.system(size: 29)).foregroundStyle(.secondary).lineLimit(
                 2)
               HStack(spacing: 24) {
-                FavoriteButton(metadata: LibraryMetadata(video: video, source: source.name))
+                FavoriteButton(metadata: LibraryMetadata(video: video, source: source.name, presentation: cardMetadata))
                 if video.embedURL != nil {
                   Text("外站嵌入视频，无法在 inHebi 播放").font(.system(size: 29)).foregroundStyle(.secondary)
                 } else {
@@ -181,7 +182,7 @@ struct VideoDetail: View {
       guard let stream = streams.first(where: { $0.name == selected }) ?? streams.first else {
         throw ShelfError.message("没有可播放的清晰度")
       }
-      playback = VideoPlayback(video: detail, stream: stream, sourceName: source.name)
+      playback = VideoPlayback(video: detail, stream: stream, sourceName: source.name, cardMetadata: cardMetadata)
     } catch { self.error = error.localizedDescription }
   }
 }
@@ -198,7 +199,7 @@ struct VideoRail: View {
           ForEach(videos) { video in
             VStack(alignment: .leading, spacing: 12) {
               NavigationLink {
-                VideoDetail(source: source, id: video.id)
+                VideoDetail(source: source, id: video.id, cardMetadata: LibraryMetadata(video: video, source: source.name))
               } label: {
                 RemoteImage(url: video.thumbnail, maxPixelSize: ShelfLayout.cardPixels, fill: true)
                   .frame(width: 400, height: 225).clipShape(RoundedRectangle(cornerRadius: 16))

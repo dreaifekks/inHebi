@@ -51,10 +51,10 @@ Generic 编译不需要 tvOS 模拟器运行时。未下载模拟器运行时；
 
 ## iCloud 历史与收藏
 
-- 模型和读写接口在 `Packages/ShelfCore/Sources/ShelfCore/LibraryStore.swift`，不依赖 tvOS UI。`SavedMediaItem` 保存来源、站点 ID、标题、封面链接、卡片方向、最近观看时间及零基阅读页码；`FavoriteFolder` 保存稳定 ID、名称和创建时间，通过可选双向多对多关系关联条目。所有持久化属性有默认值或可选，没有唯一约束。默认收藏夹 ID 为 `default`，首次收藏时创建；导入完成后合并跨设备同时创建的重复条目/默认夹。
-- 视频开始播放、打开漫画时写入历史，同一来源与 ID 只更新时间；翻页和退出阅读器保存页码。详情刷新后更新已经保存的标题和封面。清空历史同时清除续读页码，但保留收藏。
-- 视频/漫画详情的星标短按切换默认收藏，长按打开带选中状态的收藏夹列表，可逐个切换或新建收藏夹；属于任一收藏夹即实心星标。
-- “我的”复用 0.4 秒聚焦切换的筛选条，历史在前、收藏夹在后。按来源分区，卡片保持原有列数/比例；Select 进入详情、播放/暂停直接打开。卡片长按菜单可从当前列表移除。右侧固定按钮清空历史或管理当前收藏夹（重命名/删除）。
+- 模型和读写接口在 `Packages/ShelfCore/Sources/ShelfCore/LibraryStore.swift`，不依赖 tvOS UI。`SavedMediaItem` 保存来源、站点 ID、标题、封面链接、卡片方向、最近观看时间及零基阅读页码；`FavoriteFolder` 保存稳定 ID、名称和创建时间，通过可选双向多对多关系关联条目。所有持久化属性有默认值或可选，没有唯一约束。默认收藏夹 ID 为 `default`，首次收藏时创建；导入完成后合并跨设备同时创建的重复条目/默认夹，按创建时间、再按不可变记录 ID 选择保留对象，最新元数据单独合并。
+- 视频开始播放、打开漫画时写入历史，同一来源与 ID 只更新时间；翻页只更新内存对象，由 SwiftData 自动保存，退出阅读器时显式保存一次。历史/收藏携带列表的封面方向、封面链接与裁切规则；详情刷新仍更新标题，已存竖版不会被详情的横版播放器海报覆盖。清空历史同时清除续读页码，但保留收藏；没有历史且不属于任何收藏夹的条目随移除操作删除。
+- 视频/漫画详情的星标短按切换默认收藏，长按打开带选中状态的收藏夹列表，可逐个切换或新建收藏夹；实心只表示属于默认收藏夹，短按一定切换星标状态；仅在其他收藏夹时为空心，按钮文字显示总收藏夹数量（如“收藏 · 2 个收藏夹”）。
+- “我的”复用 0.4 秒聚焦切换的筛选条，历史在前、收藏夹在后。按来源分区，卡片保持原有列数/比例；Select 进入详情、播放/暂停直接打开。卡片长按菜单可从当前列表移除。右侧固定按钮清空历史或管理当前收藏夹（重命名/删除）；芯片标题、顺序和删除同步更新，删除当前收藏夹后回到“历史”。详情使用独立导航值，取消收藏移除原卡片时仍停留在详情。漫画快速打开直接复用当前列表元数据，只请求页面，不为写历史额外请求详情。
 - 设置显示 iCloud 账号状态；未登录时保留本机数据。iCloud 容器为 `iCloud.com.dreaife.inhebi`，仅使用私有数据库。开发签名使用 **CloudKit Development** 环境。
 - `script/generate-project.py` 同时生成 `Shelf/Shelf.entitlements`，保留 iCloud、推送和 `UIBackgroundModes = remote-notification` 配置；新 App ID 是 `com.dreaife.inhebi`，UI 测试是 `com.dreaife.inhebi.uitests`。内部工程、scheme、目录仍为 Shelf。
 - DEBUG 的 `Library/Caches/inHebi/FocusTrace.txt` 包含 `cloudkit kind=import/export/setup completed=... success=... error=domain:code`，不记录云端条目内容。UI 测试使用内存库，不能用它证明同步；必须正常启动签名 App，产生历史/收藏后核对 `kind=export completed=true success=true`。

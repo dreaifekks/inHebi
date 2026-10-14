@@ -7,6 +7,7 @@ struct VideoPlayback: Identifiable {
   let video: Video
   let stream: VideoStream
   let sourceName: String
+  var cardMetadata: LibraryMetadata?
 }
 struct PlayerScreen: View {
   @Environment(AppModel.self) private var model
@@ -29,7 +30,7 @@ struct PlayerScreen: View {
       }
     }
     .onAppear {
-      model.libraryAction { try $0.recordVisit(LibraryMetadata(video: playback.video, source: playback.sourceName)) }
+      model.libraryAction { try $0.recordVisit(LibraryMetadata(video: playback.video, source: playback.sourceName, presentation: playback.cardMetadata)) }
     }
     .onExitCommand { dismiss() }
     .alert("播放失败", isPresented: Binding(get: { error != nil }, set: { if !$0 { error = nil } })) {

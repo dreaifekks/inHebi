@@ -72,43 +72,67 @@ struct ChipStrip: UIViewRepresentable {
       options: [SourceOption], selected: String, injectedID: String?,
       injectedRequest: Int
     ) {
-      self.selected = selected
-      for option in options {
-        if buttons[option.id] == nil {
-          let button = UIButton(type: .system)
+      let ids = Set(options.map(\.id))
+      self.selected = ids.contains(selected) ? selected : (options.first?.id ?? "")
+      let removedFocus = buttons.contains { !ids.contains($0.key) && $0.value.isFocused }
+      for id in Array(buttons.keys) where !ids.contains(id) {
+        let button = buttons.removeValue(forKey: id)!
+        if preferred === button { preferred = nil }
+        stack.removeArrangedSubview(button)
+        button.removeFromSuperview()
+      }
+      for (index, option) in options.enumerated() {
+        let button: UIButton
+        if let existing = buttons[option.id] {
+          button = existing
+        } else {
+          button = UIButton(type: .system)
           button.accessibilityIdentifier = "chip." + option.id
-          button.accessibilityLabel = option.title
-          button.setTitle(option.title, for: .normal)
-          button.configurationUpdateHandler = { [weak self] button in
-            guard let self else { return }
-            var config = UIButton.Configuration.filled()
-            config.cornerStyle = .capsule
-            config.title = option.title
-            config.attributedTitle = AttributedString(
-              option.title, attributes: AttributeContainer([.font: UIFont.systemFont(ofSize: 29)]))
-            let chosen = self.selected == option.id
-            config.baseBackgroundColor =
-              button.isFocused ? .white : (chosen ? .cyan : UIColor(white: 0.2, alpha: 1))
-            config.baseForegroundColor = button.isFocused || chosen ? .black : .white
-            config.image = UIImage(systemName: FilterSymbols.chip(option.title))
-            config.preferredSymbolConfigurationForImage = UIImage.SymbolConfiguration(
-              pointSize: FilterSymbols.pointSize, weight: .medium)
-            config.imagePadding = FilterSymbols.spacing
-            config.contentInsets = .init(top: 8, leading: 24, bottom: 8, trailing: 24)
-            button.configuration = config
-            button.accessibilityTraits = chosen ? [.button, .selected] : [.button]
-          }
           buttons[option.id] = button
-          stack.addArrangedSubview(button)
           NSLayoutConstraint.activate([
             button.widthAnchor.constraint(greaterThanOrEqualToConstant: ShelfLayout.chipWidth + 60),
             button.heightAnchor.constraint(equalToConstant: 60),
           ])
         }
-        buttons[option.id]?.setNeedsUpdateConfiguration()
+        if stack.arrangedSubviews.firstIndex(of: button) != index {
+          stack.removeArrangedSubview(button)
+          stack.insertArrangedSubview(button, at: index)
+        }
+        button.accessibilityLabel = option.title
+        button.setTitle(option.title, for: .normal)
+        button.configurationUpdateHandler = { [weak self] button in
+          guard let self else { return }
+          var config = UIButton.Configuration.filled()
+          config.cornerStyle = .capsule
+          config.title = option.title
+          config.attributedTitle = AttributedString(
+            option.title, attributes: AttributeContainer([.font: UIFont.systemFont(ofSize: 29)]))
+          let chosen = self.selected == option.id
+          config.baseBackgroundColor =
+            button.isFocused ? .white : (chosen ? .cyan : UIColor(white: 0.2, alpha: 1))
+          config.baseForegroundColor = button.isFocused || chosen ? .black : .white
+          config.image = UIImage(systemName: FilterSymbols.chip(option.title))
+          config.preferredSymbolConfigurationForImage = UIImage.SymbolConfiguration(
+            pointSize: FilterSymbols.pointSize, weight: .medium)
+          config.imagePadding = FilterSymbols.spacing
+          config.contentInsets = .init(top: 8, leading: 24, bottom: 8, trailing: 24)
+          button.configuration = config
+          button.accessibilityTraits = chosen ? [.button, .selected] : [.button]
+        }
+        button.setNeedsUpdateConfiguration()
       }
       for guide in [topEntry, bottomEntry] {
-        guide.preferredFocusEnvironments = buttons[selected].map { [$0] } ?? []
+        guide.preferredFocusEnvironments = buttons[self.selected].map { [$0] } ?? []
+      }
+      if removedFocus {
+        // Recover only an actually removed focus target; normal entry keeps the existing guides.
+        DispatchQueue.main.async { [weak self] in
+          guard let self else { return }
+          self.changed(.chip(self.selected))
+          self.preferred = self.buttons[self.selected]
+          self.setNeedsFocusUpdate()
+          self.updateFocusIfNeeded()
+        }
       }
       if injection != injectedRequest, let injectedID {
         injection = injectedRequest
@@ -131,7 +155,9 @@ struct ChipStrip: UIViewRepresentable {
       super.didUpdateFocus(in: context, with: coordinator)
       if TestMode.enabled {
         transitionCount += 1
-        for button in buttons.values { button.accessibilityValue = "focusUpdates=\(transitionCount)" }
+        for button in buttons.values {
+          button.accessibilityValue = "focusUpdates=\(transitionCount)"
+        }
       }
       // Disable both entry guides once inside, so horizontal navigation and exits
       // remain native. No key event or movement heading participates in this rule.

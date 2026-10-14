@@ -3,6 +3,7 @@ import SwiftUI
 
 /// One focus/scroll owner shared by video and album lists.
 struct BrowseList<Destination: View, Search: View>: View {
+  let traceScope: String
   let entries: [MediaEntry]
   let portrait: Bool
   var comic = false
@@ -28,7 +29,9 @@ struct BrowseList<Destination: View, Search: View>: View {
   let loadMore: () async -> Void
   @Environment(AppModel.self) private var model
   @Environment(\.dismiss) private var dismiss
-  @FocusState private var focus: BrowseFocus?
+  @State private var focus: BrowseFocus?
+  @FocusState private var controlFocus: BrowseFocus?
+  @State private var focusRequest = 0
   @State private var position = ScrollPosition(idType: String.self)
   @State private var visible = false
   @State private var nearBottom = false
@@ -49,7 +52,8 @@ struct BrowseList<Destination: View, Search: View>: View {
       VStack(spacing: 0) {
         if hasBar {
           FilterBar(
-            options: options, selection: $selection, focus: $focus,
+            options: options, selection: $selection, focus: $focus, controlFocus: $controlFocus,
+            focusRequest: focusRequest,
             filterTitle: filterTitle, filterAction: filterAction,
             search: AnyView(
               NavigationLink(destination: search) {
@@ -70,21 +74,15 @@ struct BrowseList<Destination: View, Search: View>: View {
             }
             MediaGrid(
               entries: entries, width: geometry.size.width - 2 * ShelfLayout.horizontalInset,
-              portrait: portrait, comic: comic, referer: referer, focus: $focus,
+              portrait: portrait, comic: comic, referer: referer, focus: $controlFocus,
               preparing: preparing, quickError: quickError, failedID: failedID,
-              destination: destination, quick: quick,
-              firstRowUp: { index in
-                if hasBar {
-                  focus =
-                    index == columns - 1
-                    ? (filterTitle == nil ? .search : .filter) : .chip(selection)
-                }
-              })
+              destination: destination, quick: quick)
             LoadingFooter(loading: loading && !entries.isEmpty, error: error, hasNext: hasNext) {
               Task { await loadMore() }
             }.accessibilityIdentifier("browse.footer")
           }.padding(.horizontal, ShelfLayout.horizontalInset)
         }
+        .accessibilityIdentifier("browse.grid")
         .scrollPosition($position)
         .onScrollGeometryChange(for: Viewport.self) { geometry in
           Viewport(
@@ -98,18 +96,40 @@ struct BrowseList<Destination: View, Search: View>: View {
           perform: gridFocused
             ? {
               if hasBar {
+                FocusTrace.mark("set-focus reason=menu target=\(selection)")
                 position.scrollTo(y: 0)
-                focus = .chip(selection)
+                controlFocus = nil
+                focusRequest += 1
               } else {
                 dismiss()
               }
             } : nil)
       }
-      .background {
-        if hasBar { TabFocusEntry { if visible { focus = .chip(selection) } } }
+      .onChange(of: focus) { old, new in
+        if visible {
+          FocusTrace.state = traceState
+          FocusTrace.focusChanged(old: String(describing: old), new: String(describing: new))
+        }
       }
-      .onAppear { visible = true }
+      .onChange(of: controlFocus) { old, new in
+        if let new { focus = new } else if focus == old { focus = nil }
+      }
+      .onAppear {
+        visible = true
+        FocusTrace.state = traceState
+      }
+      .onChange(of: traceState) { _, state in
+        if visible {
+          FocusTrace.state = state
+        }
+      }
       .onDisappear { visible = false }
+      .onChange(of: loading) { _, _ in
+        if visible {
+          FocusTrace.state = traceState
+          FocusTrace.mark("loading-state")
+        }
+      }
       .onChange(of: key) { _, _ in position.scrollTo(y: 0) }
       .onChange(of: paginationDemand, initial: true) { _, _ in
         if case .card = focus,
@@ -130,6 +150,9 @@ struct BrowseList<Destination: View, Search: View>: View {
       }
     }.ignoresSafeArea(.container, edges: .horizontal)
       .toolbarVisibility(model.readerActive ? .hidden : .visible, for: .tabBar)
+  }
+  private var traceState: String {
+    "scope=\(traceScope) logical=\(String(describing: focus)) focusState=\(String(describing: controlFocus)) loggedIn=\(model.isLoggedIn) selection=\(selection) valid=\(options.contains { $0.id == selection }) count=\(entries.count) loading=\(loading)"
   }
   private struct Viewport: Equatable {
     let offset: CGFloat

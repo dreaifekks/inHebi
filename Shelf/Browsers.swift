@@ -40,6 +40,7 @@ struct VideoBrowser: View {
   }
   var body: some View {
     BrowseList(
+      traceScope: source.name,
       entries: pager.items.map(MediaEntry.init), portrait: pager.items.first?.isPortrait == true,
       emptyTitle: searchQuery.map { "没有找到「\($0)」" } ?? "这个分类暂时没有内容",
       hasBar: hasBar, options: source.categories.isEmpty ? source.sorts : source.categories,
@@ -78,8 +79,12 @@ struct VideoBrowser: View {
     let query = searchQuery ?? ""
     await pager.load(reset: reset, key: key, first: 0) { page in
       if let filter { return try await source.filteredVideos(filter, page: page) }
-      return try await source.videos(
+      let result = try await source.videos(
         page: page, sort: sort, rating: rating, query: query, category: category)
+      if TestMode.enabled && ProcessInfo.processInfo.arguments.contains("--ui-slow-list") {
+        try await Task.sleep(for: .seconds(2))
+      }
+      return result
     }
   }
   private func quickPlay(_ id: String) async {
@@ -118,6 +123,7 @@ struct AlbumBrowser: View {
   private var key: String { "\(category)|\(searchQuery ?? "")|\(tag ?? "")" }
   var body: some View {
     BrowseList(
+      traceScope: source.name,
       entries: pager.items.map(MediaEntry.init), portrait: true, comic: true,
       referer: source.imageReferer(albumID: nil),
       emptyTitle: searchQuery.map { "没有找到「\($0)」" } ?? "这个分类暂时没有内容",
@@ -148,8 +154,12 @@ struct AlbumBrowser: View {
   private func load(reset: Bool = false) async {
     let category = category
     await pager.load(reset: reset, key: key, first: source.firstPage) {
-      try await source.albums(
+      let result = try await source.albums(
         page: $0, category: category, query: searchQuery ?? "", tag: tag ?? "")
+      if TestMode.enabled && ProcessInfo.processInfo.arguments.contains("--ui-slow-list") {
+        try await Task.sleep(for: .seconds(2))
+      }
+      return result
     }
   }
   private func quickRead(_ id: String) async {

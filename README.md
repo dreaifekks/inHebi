@@ -121,13 +121,32 @@ Debug App 同时带 `--ui-testing --mute-playback` 启动参数时静音，显�
 
 2026-10-14 当前验收：核心离线及联网测试通过（联网 28 项），真机完整 15 项通过，generic tvOS 编译通过。39 张命名截图已逐张检查，筛选条末尾、返回和分类搜索截图在最后导出后再次复核。结果见 `progress.md`，截图在 `artifacts/screenshots/`。
 
-已验证的原生行为差异：筛选条采用独立固定头部，避开 safeAreaInset 在 tvOS 的焦点滚动影响；芯片保持固定几何尺寸与同一种原生按钮样式并用颜色/勾号选中；搜索使用子页 TextField，因 searchable 的原生键盘未触发期望的提交；阅读器使用隐藏 Tab 的导航页，避开全屏模态返回焦点问题。条高 80pt 容纳实际约 66pt 的系统按钮与焦点效果，首屏仍完整两行。
+已验证的原生行为差异：筛选条采用独立固定头部，避开 safeAreaInset 在 tvOS 的焦点滚动影响；芯片保持固定几何尺寸与同一种原生按钮样式并用颜色/勾号选中；搜索使用子页 TextField，因 searchable 的原生键盘未触发期望的提交；阅读器使用隐藏 Tab 的导航页，避开全屏模态返回焦点问题。条高 80pt 容纳 60pt 的原生芯片按钮与焦点效果，首屏仍完整两行。
 
 
 ## 筛选条交互修订
 
-`Shelf/BrowseList.swift` 是视频/漫画共用的列表焦点与滚动容器；不再通过 FocusState 临时 nil 值猜测 Tab 返回，也不在左右移动时手动递增索引或 scrollTo 居中。芯片最小内容宽 160pt、间距 24pt，原生按钮实际宽度更大；末端无渐变遮挡。UIKit 公共焦点通知的 Tab -> 内容边界由 `Shelf/TabFocusEntry.swift` 精确处理，只对当前可见列表生效；网格第一行向上及芯片/固定区的边界有明确方向目标，普通左右仍由原生引擎处理。
+`Shelf/BrowseList.swift` 是视频/漫画共用的列表焦点与滚动容器。芯片条用 `Shelf/ChipStrip.swift` 中的 UIKit UIScrollView/UIStackView/UIButton，焦点矩形严格限制在 80pt 条内；按钮最小宽 220pt、间距 24pt，末端无渐变遮挡。保留系统 TabView，上下左右由原生焦点引擎按实际布局移动，列表不再使用 onMoveCommand 或 focusHeading 搬焦点。
+
+生产代码仅在两种情况请求列表焦点：从顶栏/网格实际进入错误的芯片时归到当前选中芯片（依据前后视图层级）；Menu 在网格内时滚回顶部并请求选中芯片。芯片内部左右移动不纠正位置，停留 400ms 后切分类；进入固定排序/搜索按钮不改分类。SwiftUI FocusState 只观察卡片和固定按钮；不会把它设置成尚未注册的芯片 ID。焦点通知仅用于 DEBUG 记录，不更改焦点。
 
 分页同时观察滚动位置和当前卡片是否接近末尾，每次追加后重新评估；网络请求由 Pager 持有，切换筛选时取消旧请求，滚动条件改变不会中途取消翻页请求。底部显示加载提示。核心测试覆盖取消和过期结果隔离。
 
 真机测试逐次检查左右一个芯片、全部分类可达且末尾完整可见、四种状态下的顶部入口、三页连续加载和 Menu 回顶部。XCUIRemote 单次调用约 0.5 秒；另外用仅测试模式的 `--ui-fast-focus` 注入 100ms 焦点变化，验证真实视图防抖到真实请求的链路。这个注入测试不能代表 Siri Remote 触控面滑动手感。
+
+## DEBUG 焦点记录
+
+Debug 构建无论正常启动还是 UI 测试，都会把最近 500 行焦点记录保存到应用容器 `Library/Caches/Shelf/FocusTrace.txt`。记录 UTC 时间、原生方向、前后视图及层级、逻辑元素标识、SwiftUI FocusState、当前分类、条目数和加载状态；代码主动请求焦点会单独标记原因。文件异步写入，不联网、不改变界面、不记录密码或 token；Release 不记录。
+
+遇到问题后停止继续操作，尽快在已配对 Mac 上取回：
+
+```sh
+./script/fetch-focus-trace.sh "$SHELF_DEVICE_ID"
+# 等价命令：
+xcrun devicectl device copy from --device "$SHELF_DEVICE_ID" \
+  --domain-type appDataContainer --domain-identifier com.dreaife.shelf \
+  --source Library/Caches/Shelf/FocusTrace.txt \
+  --destination artifacts/FocusTrace.txt
+```
+
+同时说明当时的数据源、是否刚切分类，以及最后几次是点按还是滑动。日志跨启动保留尾部，但后续操作会覆盖旧行；tvOS 缓存也可能被系统清理。

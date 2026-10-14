@@ -617,4 +617,106 @@ import XCTest
     screenshot("42-hanime-scoped-search")
   }
 
+  private func currentRow() -> String {
+    let item = app.buttons.matching(NSPredicate(format: "hasFocus == true")).firstMatch
+    guard item.exists else { return "none" }
+    let id = item.identifier
+    if ["play.rectangle", "film", "books.vertical", "gearshape"].contains(id) { return "top" }
+    if id.hasPrefix("chip.") || id == "filter.primary" || id == "search.open" {
+      return "strip:" + id
+    }
+    if id.hasPrefix("video.card.") || id.hasPrefix("album.card.") { return "grid:" + id }
+    return id
+  }
+  private func press(_ key: XCUIRemote.Button, row: String, stage: String) {
+    remote.press(key)
+    wait(stage + " must focus " + row, timeout: 3) { self.currentRow().hasPrefix(row) }
+    print("ROW \(stage)=\(currentRow())")
+  }
+  private func directionalRows(normal: Bool) {
+    if normal {
+      continueAfterFailure = false
+      remote.press(.home)
+      app.launchArguments = []
+      app.launch()
+      addTeardownBlock { [app] in await MainActor.run { app.terminate() } }
+    } else {
+      launch()
+    }
+    XCTAssertTrue(app.buttons["chip.trending"].waitForExistence(timeout: 30))
+    for name in ["iwara", "Hanime1", "漫画"] {
+      if name != "iwara" { tab(name) }
+      ready(name == "漫画")
+      press(.down, row: "strip:", stage: name + " top-down")
+      XCTAssertTrue(focused.isSelected)
+      press(.down, row: "grid:", stage: name + " strip-down")
+      XCTAssertEqual(
+        focused.frame.midY, cards(name == "漫画").firstMatch.frame.midY, accuracy: 15,
+        "Strip Down must enter the first row")
+      for _ in 0..<3 { press(.down, row: "grid:", stage: name + " grid-down") }
+      for _ in 0..<3 { press(.up, row: "grid:", stage: name + " grid-up") }
+      press(.up, row: "strip:", stage: name + " first-row-up")
+      XCTAssertTrue(
+        focused.isSelected || focused.identifier == "filter.primary"
+          || focused.identifier == "search.open")
+      press(.up, row: "top", stage: name + " strip-up")
+      press(.down, row: "strip:", stage: name + " reentry")
+      press(.down, row: "grid:", stage: name + " loaded-down")
+      remote.press(.select)
+      XCTAssertTrue(
+        app.buttons[name == "漫画" ? "album.read" : "video.play"].waitForExistence(timeout: 30))
+      press(.menu, row: "grid:", stage: name + " detail-return")
+      press(.up, row: "strip:", stage: name + " detail-strip")
+      press(.up, row: "top", stage: name + " detail-top")
+      press(.down, row: "strip:", stage: name + " after-detail-entry")
+      remote.press(.right)
+      remote.press(.down)
+      XCTAssertTrue(
+        currentRow().hasPrefix("strip:") || currentRow().hasPrefix("grid:"),
+        "Loading Down must not reverse: " + currentRow())
+      ready(name == "漫画")
+      if currentRow().hasPrefix("strip:") {
+        press(.down, row: "grid:", stage: name + " load-completed")
+      }
+      screenshot(
+        (normal ? "52-normal-" : "53-test-")
+          + (name == "漫画" ? "comic" : name == "Hanime1" ? "hanime" : "iwara"))
+      press(.up, row: "strip:", stage: name + " changed-category-up")
+      press(.up, row: "top", stage: name + " changed-category-top")
+    }
+  }
+  func testNormalDirectionalRows() { directionalRows(normal: true) }
+  func testTestingDirectionalRows() { directionalRows(normal: false) }
+  func testDirectionalTiming() {
+    launch(["--ui-focus-before-down", "--ui-slow-list"])
+    ready()
+    for name in ["iwara", "Hanime1", "漫画"] {
+      if name != "iwara" {
+        tab(name)
+        ready(name == "漫画")
+      }
+      press(.down, row: "strip:", stage: name + " timing-entry")
+      remote.press(.playPause)
+      remote.press(.down)
+      XCTAssertTrue(currentRow().hasPrefix("grid:") || currentRow().hasPrefix("strip:"))
+      print("EARLY_DOWN " + name + " " + currentRow())
+      if currentRow().hasPrefix("grid:") {
+        press(.menu, row: "strip:", stage: name + " timing-reset")
+      }
+      remote.press(.right)
+      wait("Controlled loading phase", timeout: 8) {
+        self.app.staticTexts["browse.metrics"].label.contains("loading=true")
+      }
+      press(.down, row: "strip:", stage: name + " loading-down")
+      wait("Load completion", timeout: 20) {
+        self.app.staticTexts["browse.metrics"].label.contains("loading=false")
+      }
+      press(.down, row: "grid:", stage: name + " just-loaded-down")
+      for _ in 0..<3 { press(.down, row: "grid:", stage: name + " continuous-down") }
+      for _ in 0..<3 { remote.press(.down, forDuration: 0.01) }
+      wait("Rapid Down must remain in grid", timeout: 3) { self.currentRow().hasPrefix("grid:") }
+      remote.press(.menu)
+      press(.menu, row: "top", stage: name + " timing-menu-top")
+    }
+  }
 }

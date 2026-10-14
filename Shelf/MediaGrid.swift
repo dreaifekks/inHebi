@@ -45,7 +45,6 @@ struct MediaGrid<Destination: View>: View {
   var failedID: String?
   let destination: (String) -> Destination
   let quick: (String) -> Void
-  let firstRowUp: (Int) -> Void
   @State private var loadedCovers = Set<String>()
   private var columns: Int { portrait ? ShelfLayout.portraitColumns : ShelfLayout.videoColumns }
   private var spacing: CGFloat { portrait ? ShelfLayout.portraitSpacing : ShelfLayout.videoSpacing }
@@ -88,9 +87,7 @@ struct MediaGrid<Destination: View>: View {
           .accessibilityIdentifier("\(comic ? "album" : "video").card.\(entry.id)")
           .focused(focus, equals: .card(entry.id))
           .onPlayPauseCommand { quick(entry.id) }
-          .onMoveCommand { direction in
-            if direction == .up && index < columns { firstRowUp(index) }
-          }
+
           VStack(alignment: .leading, spacing: 8) {
             Text(entry.title).font(ShelfLayout.titleFont).lineLimit(2).frame(
               height: 72, alignment: .topLeading)
@@ -110,74 +107,61 @@ struct MediaGrid<Destination: View>: View {
 struct FilterBar: View {
   let options: [SourceOption]
   @Binding var selection: String
-  let focus: FocusState<BrowseFocus?>.Binding
+  @Binding var focus: BrowseFocus?
+  let controlFocus: FocusState<BrowseFocus?>.Binding
+  let focusRequest: Int
   let filterTitle: String?
   let filterAction: () -> Void
   let search: AnyView
   @State private var testBurst = 0
+  @State private var injectedID: String?
+  @State private var injectedRequest = 0
   var body: some View {
     HStack(spacing: 24) {
-      ScrollView(.horizontal, showsIndicators: false) {
-        HStack(spacing: ShelfLayout.chipSpacing) {
-          ForEach(options) { option in
-            Button {
-            } label: {
-              HStack(spacing: 10) {
-                Image(systemName: "checkmark").opacity(selection == option.id ? 1 : 0)
-                  .accessibilityHidden(true)
-                Text(option.title).fixedSize()
-              }.font(.system(size: 29)).frame(minWidth: ShelfLayout.chipWidth, minHeight: 40)
-            }
-            .buttonStyle(.borderedProminent)
-            .tint(selection == option.id ? .cyan : Color(white: 0.2))
-            .accessibilityAddTraits(selection == option.id ? .isSelected : [])
-            .accessibilityIdentifier("chip.\(option.id)")
-            .focused(focus, equals: .chip(option.id))
-            .onMoveCommand { direction in
-              if direction == .right && option.id == options.last?.id {
-                focus.wrappedValue = filterTitle == nil ? .search : .filter
-              }
-            }
-          }
-        }.padding(.horizontal, 24).padding(.vertical, 12)
-      }
+      ChipStrip(
+        options: options, selection: selection, focus: $focus, focusRequest: focusRequest,
+        injectedID: injectedID, injectedRequest: injectedRequest
+      )
       .accessibilityIdentifier("filter.chips")
       HStack(spacing: 24) {
         if let filterTitle {
           Button(filterTitle, action: filterAction).font(.system(size: 29))
             .frame(maxWidth: .infinity).accessibilityIdentifier("filter.primary")
             .accessibilityValue(filterTitle).accessibilityHint("按下切换")
-            .focused(focus, equals: .filter)
-            .onMoveCommand { direction in
-              if direction == .left, let last = options.last { focus.wrappedValue = .chip(last.id) }
-              if direction == .right { focus.wrappedValue = .search }
-            }
+            .focused(controlFocus, equals: .filter)
+
         }
-        search.focused(focus, equals: .search)
-          .onMoveCommand { direction in
-            if direction == .left, let last = options.last {
-              focus.wrappedValue = filterTitle == nil ? .chip(last.id) : .filter
-            }
-          }
+        search.focused(controlFocus, equals: .search)
+
       }.frame(width: filterTitle == nil ? 100 : ShelfLayout.filterFixedWidth)
     }.frame(height: ShelfLayout.filterHeight)
       .padding(.horizontal, ShelfLayout.horizontalInset).background(.regularMaterial)
       .onPlayPauseCommand(
-        perform: TestMode.enabled && ProcessInfo.processInfo.arguments.contains("--ui-fast-focus")
+        perform: TestMode.enabled
+          && (ProcessInfo.processInfo.arguments.contains("--ui-fast-focus")
+            || ProcessInfo.processInfo.arguments.contains("--ui-focus-before-down"))
           ? { testBurst += 1 } : nil
       )
       .task(id: testBurst) {
         guard testBurst > 0 else { return }
         // XCTest remote calls take ~0.5s each. Inject 100ms focus updates to exercise
         // the real view debounce + request path, separately from native key routing.
+        if ProcessInfo.processInfo.arguments.contains("--ui-focus-before-down") {
+          try? await Task.sleep(for: .milliseconds(200))
+          injectedID = options[1].id
+          injectedRequest += 1
+          return
+        }
         for option in options.dropFirst().prefix(3) {
-          focus.wrappedValue = .chip(option.id)
+          injectedID = option.id
+          injectedRequest += 1
           do { try await Task.sleep(for: .milliseconds(100)) } catch { return }
         }
       }
-      .task(id: focus.wrappedValue) {
-        guard case .chip(let id) = focus.wrappedValue, id != selection else { return }
+      .task(id: focus) {
+        guard case .chip(let id) = focus, id != selection else { return }
         do { try await Task.sleep(for: .milliseconds(400)) } catch { return }
+        FocusTrace.mark("select-chip id=\(id)")
         selection = id
       }
   }

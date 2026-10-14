@@ -1,10 +1,10 @@
-# Filter navigation follow-up
+# Three-row focus diagnosis
 
-- [x] Reproduce existing device behavior without app modifications
-- [x] Replace conflicting focus logic, debounce/cancel loads, flatten categories, default trends, Menu to top, robust pagination
-- [x] Strengthen device tests; 28 core tests with live mode; 15 device tests; generic build; inspect screenshots
-- [x] Prepare final commit and reproducible signed installation
+- [x] Reproduce using normal launch arguments, real preferences and Keychain
+- [x] Record native before/after focus hierarchy; distinguish loading and geometry from preferences
+- [x] Remove direction-key and focusHeading-driven focus corrections; bound native chip focus rectangles to the strip
+- [x] Verify Menu transfer, timing, all old regressions and normal three-source row assertions
+- [x] Inspect screenshots/logs and document trace retrieval
+- Final commit and exact-version installation receipt: artifacts/final-verification.json
 
-Post-commit installation and exact revision/signature/process verification receipt: artifacts/final-verification.json (generated, ignored).
-
-Scope: list pages only. Details/player/reader/settings implementations unchanged. No runtime downloads, no push.
+No detail/player/reader changes, no simulator runtime download, no push. Swipe feel requires a physical Siri Remote.

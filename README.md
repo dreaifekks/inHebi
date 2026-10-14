@@ -2,7 +2,7 @@
 
 自用 tvOS 原生应用：iwara / Hanime1 视频、wnacg 漫画。当前状态、用户做过的决定和工作约定见 [docs/HANDOFF.md](docs/HANDOFF.md)。SwiftUI + AVKit + URLSession；无 WebView、后端或下载；SwiftData 保存观看历史、阅读页码和多收藏夹，通过 CloudKit 私有数据库同步。本地保存筛选偏好。最低 tvOS 18；InHebiCore 支持 iOS 18 / macOS 15 / tvOS 18。唯一外部依赖是 SwiftSoup（锁定文件当前解析为 2.14.2）。
 
-## 漫画历史显示修复（2026-10-14，build 29）
+## 漫画历史显示修复（2026-10-14，build 30）
 
 用户报告的“漫画没有 history”已在真实 SwiftData + CloudKit 库复现。记录和页码实际已经保存：独立 ModelContext 和“我的”页查询均有 3 条漫画，但在两个视频分区之后的漫画 LazyVGrid 尚未创建屏幕外卡片，遥控器无法进入该分区。修复前 UI 查询只有 4 张视频卡片、0 张漫画卡片；修复后可导航到全部 3 张漫画卡片。
 

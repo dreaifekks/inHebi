@@ -4,7 +4,7 @@
 
 ## 当前状态
 
-- 本轮交付 inHebi 1.0 build 29（bundle ID `com.dreaife.inhebi`）；提交标识见 App 的 `InHebiCommit`，正常安装回执为 `artifacts/comic-history-install.log`。旧应用仍保留，由用户自行决定删除。
+- 本轮交付 inHebi 1.0 build 30（bundle ID `com.dreaife.inhebi`）；提交标识见 App 的 `InHebiCommit`，正常安装回执为 `artifacts/comic-history-install.log`。最终设备列表已不含旧应用；本轮没有执行卸载。
 - 远端是公开仓库 `https://github.com/dreaifekks/inHebi`（用户指定 public，放在个人账号下）。推送前已改写本地历史，把早期进度记录里的电视设备标识换成占位文字。以后推送前照样扫一遍设备标识和密钥。
 - 三个数据源照旧可用。新增 SwiftData + CloudKit 私有库的观看历史、阅读页码和多收藏夹，以及“我的”标签页和详情星标。电视已登录 iCloud，真机确认过导出成功。
 - 内部工程、target、scheme、源码目录统一为 inHebi，核心模块为 InHebiCore。SwiftData 的 @Model 类型名和属性名没有改，改了会让已有的 iCloud 记录失联。
@@ -55,7 +55,7 @@
 
 ## 待用户确认
 
-- build 29：在“我的 → 历史”向下进入漫画分区，确认之前读过的漫画可见；分别从详情和卡片播放/暂停进入阅读，退出后确认历史和续读页码。
+- build 30：在“我的 → 历史”向下进入漫画分区，确认之前读过的漫画可见；分别从详情和卡片播放/暂停进入阅读，退出后确认历史和续读页码。
 
 - 指腹滑动的手感，以及芯片宽度和 0.4 秒停留是否合手。自动化测试只能模拟按键。
 - 主屏幕上图标的三层视差效果。

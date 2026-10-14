@@ -6,7 +6,7 @@
 
 已合并阅读器/AVKit 分支 `97403c2` 与改名/iCloud 分支 `09f18c0`。本轮内部改名后，离线 40 项通过（3 项联网跳过）、联网 43 项全部通过、generic tvOS 编译通过；本机没有 tvOS 模拟器运行时。
 
-真机常规 34 项全部取得通过结果：完整首轮 32 通过 / 2 失败；取焦点日志定位到普通网格卡片的空 contextMenu 截获 Menu，限定只有收藏/历史可移除卡片创建菜单后，5 项定向回归全部通过。真实 CloudKit 专用验收另有 1/1 通过，新增和清理收藏均导出成功。日志为 `artifacts/full-device.log`、`artifacts/menu-fix-device.log`、`artifacts/final-cloudkit.log`；正常签名交付回执为 `artifacts/final-install.log`。
+真机常规 34 项全部取得通过结果：完整首轮 32 通过 / 2 失败；焦点日志显示网格焦点正确但 Menu 返回未执行，疑似普通网格卡片的空 contextMenu 偶发截获 Menu（合并前同样代码的另一轮完整测试里这两项通过，未确证）。限定只有收藏/历史可移除卡片创建菜单后，5 项定向回归全部通过。真实 CloudKit 专用验收另有 1/1 通过，新增和清理收藏均导出成功。日志为 `artifacts/full-device.log`、`artifacts/menu-fix-device.log`、`artifacts/final-cloudkit.log`；正常签名交付回执为 `artifacts/final-install.log`。
 
 新增 `testReaderClosingBurstDoesNotReopen` 覆盖上下两个方向收起后的 100/300/600ms 连发及静默后重开；按钮行 Up 断言具体当前页 1、17、双页起始 23。`testMenuDismissesWhilePlayingBothSources` 不先暂停，在两源静音播放几秒后直接按 Menu 逐层退出，检查播放器消失、停止状态与停止时间稳定。自动化按键/时间注入不等同于 Siri Remote 指腹滑动。
 

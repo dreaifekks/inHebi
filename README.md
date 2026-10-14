@@ -2,6 +2,16 @@
 
 自用 tvOS 原生应用：iwara / Hanime1 视频、wnacg 漫画。当前状态、用户做过的决定和工作约定见 [docs/HANDOFF.md](docs/HANDOFF.md)。SwiftUI + AVKit + URLSession；无 WebView、后端或下载；SwiftData 保存观看历史、阅读页码和多收藏夹，通过 CloudKit 私有数据库同步。本地保存筛选偏好。最低 tvOS 18；InHebiCore 支持 iOS 18 / macOS 15 / tvOS 18。唯一外部依赖是 SwiftSoup（锁定文件当前解析为 2.14.2）。
 
+## 漫画历史显示修复（2026-10-14，build 29）
+
+用户报告的“漫画没有 history”已在真实 SwiftData + CloudKit 库复现。记录和页码实际已经保存：独立 ModelContext 和“我的”页查询均有 3 条漫画，但在两个视频分区之后的漫画 LazyVGrid 尚未创建屏幕外卡片，遥控器无法进入该分区。修复前 UI 查询只有 4 张视频卡片、0 张漫画卡片；修复后可导航到全部 3 张漫画卡片。
+
+“我的”页的分区网格现在预先创建行和焦点卡片，保持四列/五列、卡片比例、来源分区和排序；网络浏览页仍使用 LazyVGrid。播放/暂停快捷键处理位于卡片长按菜单外层。所有漫画入口（详情开始/继续/预览页、列表快开、“我的”页快开）原本都通过 recordVisit 显式保存，视频共用 PlayerScreen 的保存入口；此次没有添加重复保存、修改模型或重置真实库。
+
+新增两项核心测试验证混合视频/漫画记录在关闭磁盘容器后重开仍保留，以及定向清理测试条目不会删除其他历史/收藏。常规漫画历史 UI 用例通过 `--ui-mixed-history` 在独立内存库预置两个视频分区，覆盖此前遗漏的布局。真实库用例 `testPersistentComicDetailHistory` 和 `testPersistentComicQuickHistory` 只挑选库中不存在的条目；验证阅读、历史可达、从历史续读、重启后页码及 CloudKit 导出，结束后仅清理自己新增的条目并等待清理导出。用 `TEST_RUNNER_INHEBI_CLOUD_TEST=1` 显式运行，沿用 `--ui-cloud-library`；不清空用户历史或收藏。
+
+本轮离线 42 通过 / 3 联网跳过，verify.sh generic tvOS 编译通过；最终受影响真机 7/7 通过。真实库清理后历史/漫画数量恢复原值，应用已退出。证据：`artifacts/comic-history-query-probe.log`（修复前）、`artifacts/comic-history-acceptance.log`、`artifacts/comic-history-final-focus.txt`、`artifacts/comic-history-final-verify.log`。正常签名安装回执为 `artifacts/comic-history-install.log`。
+
 ## 合并验收（2026-10-14）
 
 已合并阅读器/AVKit 分支 `97403c2` 与改名/iCloud 分支 `09f18c0`。本轮内部改名后，离线 40 项通过（3 项联网跳过）、联网 43 项全部通过、generic tvOS 编译通过；本机没有 tvOS 模拟器运行时。

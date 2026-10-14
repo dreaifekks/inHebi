@@ -23,6 +23,29 @@ extension AppModel {
       try $0.updateReadingPage(page, key: "wnacg:" + album)
       try $0.save()
     }
+    traceLibrary(stage: "reader-exit-saved")
+  }
+  #if DEBUG
+  func cleanHistoryProbe() {
+    let arguments = ProcessInfo.processInfo.arguments
+    if TestMode.cloudLibrary,
+      let index = arguments.firstIndex(of: "--ui-history-cleanup"), index + 1 < arguments.count
+    {
+      libraryAction { store in
+        if let item = try store.item(key: arguments[index + 1]) { try store.remove(item, from: nil) }
+      }
+      traceLibrary(stage: "probe-cleanup-saved")
+    }
+  }
+  #endif
+  func traceLibrary(stage: String) {
+    #if DEBUG
+    libraryAction { store in
+      let saved = try ModelContext(store.container).fetch(FetchDescriptor<SavedMediaItem>())
+      let history = saved.filter { $0.lastViewedAt != nil }
+      FocusTrace.mark("library stage=\(stage) persistent=\(!TestMode.inMemoryLibrary) history=\(history.count) comics=\(history.filter(\.isComic).count) pending=\(store.context.hasChanges)")
+    }
+    #endif
   }
   func refreshCloudAccount() async {
     do {
@@ -85,6 +108,14 @@ struct FavoriteButton: View {
         choosing = true
       })
     .fixedSize()
+    .overlay(alignment: .bottom) {
+      #if DEBUG
+      if TestMode.cloudLibrary {
+        Text(verbatim: "exists=\(!items.isEmpty);visited=\(items.contains { $0.lastViewedAt != nil });page=\(items.first?.readingPage ?? 0)")
+          .font(.system(size: 10)).offset(y: 16).accessibilityIdentifier("library.itemState")
+      }
+      #endif
+    }
     .sheet(isPresented: $choosing) { FolderPicker(metadata: metadata) }
   }
 }

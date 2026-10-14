@@ -355,6 +355,93 @@ import XCTest
     wait("Real CloudKit store must export cleanup", timeout: 120) { exportCount() > added }
     print("CLOUDKIT_EXPORT_CONFIRMED addedAndRemoved=true")
   }
+  func testPersistentComicDetailHistory() throws { try persistentComicHistory(quick: false) }
+  func testPersistentComicQuickHistory() throws { try persistentComicHistory(quick: true) }
+
+  private func persistentComicHistory(quick: Bool) throws {
+    try XCTSkipUnless(ProcessInfo.processInfo.environment["INHEBI_CLOUD_TEST"] == "1",
+      "Real library tests require TEST_RUNNER_INHEBI_CLOUD_TEST=1")
+    launch(["--ui-cloud-library"])
+    tab("漫画")
+    ready(true)
+    let candidate = app.staticTexts["library.freshComicCandidate"]
+    XCTAssertTrue(candidate.waitForExistence(timeout: 15))
+    let id = candidate.label
+    try XCTSkipIf(id.isEmpty, "No unused comic candidate; user records were left untouched")
+    let card = "album.card." + id
+    select(app.buttons[card])
+    let freshState = app.staticTexts["library.itemState"]
+    XCTAssertTrue(freshState.waitForExistence(timeout: 40))
+    XCTAssertTrue(freshState.label.hasPrefix("exists=false"))
+    let key = "wnacg:" + id
+    // The key is accepted only after the real library confirms no pre-existing item.
+    addTeardownBlock { [app] in
+      await MainActor.run {
+        app.terminate()
+        app.launchArguments = ["--ui-testing", "--mute-playback", "--ui-cloud-library", "--ui-history-cleanup", key]
+        app.launch()
+        let exports = app.staticTexts["cloudkit.exports"]
+        let done = NSPredicate { _, _ in MainActor.assumeIsolated {
+          exports.exists && exports.label != "exports=0"
+        } }
+        let result = XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: done, object: nil)], timeout: 60)
+        app.terminate()
+        XCTAssertEqual(result, .completed, "Test-only cleanup must export before ending")
+        print("PERSISTENT_COMIC cleanupExported=\(result == .completed)")
+      }
+    }
+    let initialExports = app.staticTexts["cloudkit.exports"].label
+    if quick {
+      remote.press(.menu)
+      focus(app.buttons[card])
+      remote.press(.playPause)
+    } else { select(app.buttons["album.read"]) }
+    let page = app.staticTexts["reader.page"]
+    XCTAssertTrue(page.waitForExistence(timeout: 40))
+    remote.press(.left); remote.press(.left)
+    let readPage = page.label
+    remote.press(.menu)
+    if quick { select(app.buttons[card]) }
+    let state = app.staticTexts["library.itemState"]
+    XCTAssertTrue(state.waitForExistence(timeout: 15))
+    print("PERSISTENT_COMIC route=\(quick ? "quick" : "detail") afterRead=\(state.label) reader=\(readPage)")
+    XCTAssertTrue(state.label.contains("visited=true"))
+    tab("我的")
+    select(app.buttons["chip.history"])
+    let stored = app.buttons["album.card." + key]
+    print("PERSISTENT_COMIC historyInitial exists=\(stored.exists) hittable=\(stored.exists && stored.isHittable)")
+    remote.press(.down)
+    for _ in 0..<40 {
+      if stored.exists && stored.isHittable { break }
+      remote.press(.down)
+    }
+    print("PERSISTENT_COMIC displayed videoCards=\(cards().count) comicCards=\(cards(true).count)")
+    for label in ["iwara", "Hanime1", "漫画"] {
+      let header = app.staticTexts[label]
+      if header.exists { print("PERSISTENT_COMIC section=\(label) frame=\(header.frame)") }
+    }
+    print("PERSISTENT_COMIC historyScrolled exists=\(stored.exists) hittable=\(stored.exists && stored.isHittable)")
+    XCTAssertTrue(stored.exists && stored.isHittable, "Newly read comic must be reachable in mixed-source history")
+    focus(stored)
+    remote.press(.playPause)
+    XCTAssertTrue(page.waitForExistence(timeout: 40))
+    XCTAssertTrue(page.label.hasPrefix("3 /"), "Library quick-open must preserve the saved reading page")
+    remote.press(.menu)
+    wait("Comic visit must export", timeout: 120) {
+      self.app.staticTexts["cloudkit.exports"].label != initialExports
+    }
+    print("PERSISTENT_COMIC visitExported=true")
+    app.terminate()
+    launch(["--ui-cloud-library"])
+    tab("漫画")
+    ready(true)
+    select(app.buttons[card])
+    XCTAssertTrue(state.waitForExistence(timeout: 40))
+    print("PERSISTENT_COMIC afterRelaunch=\(state.label)")
+    XCTAssertTrue(state.label.contains("visited=true"))
+    XCTAssertTrue(state.label.contains("page=2"))
+  }
+
   func testLibraryVideoHistory() {
     launch()
     ready()
@@ -370,7 +457,7 @@ import XCTest
     XCTAssertTrue(app.buttons["video.play"].waitForExistence(timeout: 40))
   }
   func testLibraryComicHistoryAndResume() {
-    launch()
+    launch(["--ui-mixed-history"])
     tab("漫画")
     ready(true)
     let id = cards(true).firstMatch.identifier.replacingOccurrences(of: "album.card.", with: "")

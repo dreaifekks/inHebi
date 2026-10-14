@@ -59,7 +59,7 @@ struct LibraryView: View {
                     MediaGrid(
                       entries: entries.map(MediaEntry.init),
                       width: geometry.size.width - 2 * InHebiLayout.horizontalInset,
-                      portrait: portrait, comic: source == "wnacg",
+                      portrait: portrait, comic: source == "wnacg", materializesAllRows: true,
                       referer: source == "wnacg" ? model.wnacg.imageReferer(albumID: nil) : nil,
                       focus: $controlFocus, preparing: preparing, quickError: quickError,
                       failedID: failedID,
@@ -114,6 +114,10 @@ struct LibraryView: View {
     .toolbarVisibility(model.readerActive ? .hidden : .visible, for: .tabBar)
     .accessibilityElement(children: .contain)
     .accessibilityIdentifier("library.screen")
+    .onAppear {
+      model.traceLibrary(stage: "library-appeared")
+      FocusTrace.mark("library query total=\(items.count) visible=\(visibleItems.count) comics=\(visibleItems.filter(\.isComic).count) sources=\(Set(visibleItems.map(\.source)).sorted())")
+    }
     .fullScreenCover(item: $playback) { PlayerScreen(playback: $0) }
     .navigationDestination(item: $reading) { ReaderView(session: $0) }
     .navigationDestination(item: $detailRoute) { detail($0.metadata) }
@@ -155,6 +159,7 @@ struct LibraryView: View {
       if item.isComic {
         let pages = try await model.wnacg.pages(id: item.mediaID)
         try model.library.recordVisit(item)
+        model.traceLibrary(stage: "comic-library-saved")
         reading = ReadingSession(
           pages: pages, albumID: item.mediaID,
           referer: model.wnacg.imageReferer(albumID: item.mediaID), startPage: page)

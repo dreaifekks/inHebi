@@ -26,6 +26,16 @@ import CloudKit
       UIApplication.shared.registerForRemoteNotifications()
     }
     libraryAction { try $0.reconcileDuplicates() }
+    #if DEBUG
+    cleanHistoryProbe()
+    if TestMode.inMemoryLibrary && ProcessInfo.processInfo.arguments.contains("--ui-mixed-history") {
+      libraryAction { store in
+        for source in ["iwara", "Hanime1"] {
+          try store.recordVisit(LibraryMetadata(source: source, mediaID: "ui-history-fixture", title: source))
+        }
+      }
+    }
+    #endif
     Task { await refreshCloudAccount() }
     await iwara.setExpirationHandler { [weak self] in await self?.sessionExpired() }
     do {

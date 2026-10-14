@@ -332,6 +332,7 @@ struct AlbumDetail: View {
     do {
       let pages = try await source.pages(id: id)
       if let album { try model.library.recordVisit(LibraryMetadata(album: album, source: source.name), page: page) }
+      model.traceLibrary(stage: "comic-detail-saved")
       reading = ReadingSession(
         pages: pages, albumID: id,
         referer: source.imageReferer(albumID: id), startPage: page)

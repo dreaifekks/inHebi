@@ -125,6 +125,7 @@ struct AlbumBrowser: View {
   @State private var preparing: String?
   @State private var quickError: String?
   @State private var failedID: String?
+  @State private var historyProbeCandidate = ""
   private var key: String { "\(category)|\(searchQuery ?? "")|\(tag ?? "")" }
   var body: some View {
     BrowseList(
@@ -147,6 +148,14 @@ struct AlbumBrowser: View {
         if categoryError != nil { await loadCategories() } else { await load() }
       }
     )
+    .overlay(alignment: .bottomLeading) {
+      #if DEBUG
+      if TestMode.cloudLibrary {
+        Text(historyProbeCandidate).font(.system(size: 10))
+          .accessibilityIdentifier("library.freshComicCandidate")
+      }
+      #endif
+    }
     .task(id: key) { await load(reset: true) }
     .task { if categories.isEmpty { await loadCategories() } }
     .navigationDestination(item: $reading) { ReaderView(session: $0) }
@@ -168,8 +177,17 @@ struct AlbumBrowser: View {
       }
       return result
     }
+    #if DEBUG
+    if TestMode.cloudLibrary {
+      model.libraryAction { store in
+        let storedKeys = Set(try store.items().map(\.key))
+        historyProbeCandidate = pager.items.first { !storedKeys.contains("wnacg:" + $0.id) }?.id ?? ""
+      }
+    }
+    #endif
   }
   private func quickRead(_ album: Album) async {
+    FocusTrace.mark("comic quick-requested")
     let id = album.id
     guard preparing == nil else { return }
     preparing = id
@@ -178,6 +196,7 @@ struct AlbumBrowser: View {
     do {
       let pages = try await source.pages(id: id)
       try model.library.recordVisit(LibraryMetadata(album: album, source: source.name))
+      model.traceLibrary(stage: "comic-quick-saved")
       reading = ReadingSession(
         pages: pages, albumID: id, referer: source.imageReferer(albumID: id),
         startPage: model.lastReadingPage(id))

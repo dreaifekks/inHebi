@@ -46,6 +46,7 @@ struct MediaGrid<Destination: View>: View {
   let width: CGFloat
   let portrait: Bool
   var comic = false
+  var materializesAllRows = false
   var referer: String?
   let focus: FocusState<BrowseFocus?>.Binding
   var preparing: String?
@@ -63,30 +64,49 @@ struct MediaGrid<Destination: View>: View {
     portrait ? cardWidth * (comic ? 4 / 3 : 1.5) : cardWidth * 9 / 16
   }
   var body: some View {
-    LazyVGrid(
-      columns: Array(repeating: GridItem(.fixed(cardWidth), spacing: spacing), count: columns),
-      spacing: InHebiLayout.rowSpacing
-    ) {
-      ForEach(Array(entries.enumerated()), id: \.element.id) { index, entry in
-        VStack(alignment: .leading, spacing: InHebiLayout.coverTitleSpacing) {
-          cardWithMenu(entry)
-
-          VStack(alignment: .leading, spacing: 8) {
-            Text(entry.title).font(InHebiLayout.titleFont).lineLimit(2).frame(
-              height: 72, alignment: .topLeading
-            )
-            .accessibilityIdentifier("entry.title.\(entry.id)")
-            Text(failedID == entry.id ? (quickError ?? "") : entry.subtitle)
-              .font(InHebiLayout.captionFont).foregroundStyle(
-                failedID == entry.id ? .orange : .secondary
-              )
-              .lineLimit(1).frame(height: 30, alignment: .topLeading)
-          }.frame(maxWidth: .infinity, alignment: .leading)
-        }.frame(width: cardWidth)
-          .accessibilityElement(children: .contain).accessibilityIdentifier("entry.\(entry.id)")
-          .id(entry.id)
+    Group {
+      if !materializesAllRows {
+        LazyVGrid(
+          columns: Array(repeating: GridItem(.fixed(cardWidth), spacing: spacing), count: columns),
+          spacing: InHebiLayout.rowSpacing
+        ) {
+          ForEach(entries) { entry in tile(entry) }
+        }
+      } else {
+        // Library source sections may begin below the viewport. Their focusable
+        // cards must exist before the remote can scroll into the next section.
+        VStack(alignment: .leading, spacing: InHebiLayout.rowSpacing) {
+          ForEach(Array(stride(from: 0, to: entries.count, by: columns)), id: \.self) { start in
+            HStack(alignment: .top, spacing: spacing) {
+              ForEach(entries[start..<min(start + columns, entries.count)]) { entry in tile(entry) }
+            }
+          }
+        }.frame(maxWidth: .infinity, alignment: .leading)
       }
     }.scrollTargetLayout()
+  }
+  private func tile(_ entry: MediaEntry) -> some View {
+    VStack(alignment: .leading, spacing: InHebiLayout.coverTitleSpacing) {
+      cardWithMenu(entry)
+        .onPlayPauseCommand {
+          FocusTrace.mark("grid quick-command comic=\(comic)")
+          quick(entry.id)
+        }
+
+      VStack(alignment: .leading, spacing: 8) {
+        Text(entry.title).font(InHebiLayout.titleFont).lineLimit(2).frame(
+          height: 72, alignment: .topLeading
+        )
+        .accessibilityIdentifier("entry.title.\(entry.id)")
+        Text(failedID == entry.id ? (quickError ?? "") : entry.subtitle)
+          .font(InHebiLayout.captionFont).foregroundStyle(
+            failedID == entry.id ? .orange : .secondary
+          )
+          .lineLimit(1).frame(height: 30, alignment: .topLeading)
+      }.frame(maxWidth: .infinity, alignment: .leading)
+    }.frame(width: cardWidth)
+      .accessibilityElement(children: .contain).accessibilityIdentifier("entry.\(entry.id)")
+      .id(entry.id)
   }
   @ViewBuilder private func cardWithMenu(_ entry: MediaEntry) -> some View {
     if let remove {
@@ -105,7 +125,7 @@ struct MediaGrid<Destination: View>: View {
       .accessibilityValue(loadedCovers.contains(entry.id) ? "封面已加载" : "封面加载中")
       .accessibilityIdentifier("\(comic ? "album" : "video").card.\(entry.id)")
       .focused(focus, equals: .card(entry.id))
-      .onPlayPauseCommand { quick(entry.id) }
+
   }
   @ViewBuilder private func cardLink(_ entry: MediaEntry) -> some View {
     if let openDetail {

@@ -34,6 +34,7 @@ struct PlayerScreen: View {
     }
     .onAppear {
       model.libraryAction { try $0.recordVisit(LibraryMetadata(video: playback.video, source: playback.sourceName, presentation: playback.cardMetadata)) }
+      model.traceLibrary(stage: "video-start-saved")
     }
     .alert("播放失败", isPresented: Binding(get: { error != nil }, set: { if !$0 { error = nil } })) {
       Button("返回详情") { dismiss() }

@@ -215,4 +215,53 @@ import XCTest
     XCTAssertEqual(try reader.fetch(FetchDescriptor<SavedMediaItem>()).first?.readingPage, 7)
   }
 
+  func testMixedComicAndVideoHistorySurvivesDiskContainerReopen() throws {
+    let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: directory) }
+    let url = directory.appendingPathComponent("history.store")
+    func open() throws -> LibraryStore {
+      let schema = Schema([SavedMediaItem.self, FavoriteFolder.self])
+      let config = ModelConfiguration(schema: schema, url: url, cloudKitDatabase: .none)
+      return LibraryStore(container: try ModelContainer(for: schema, configurations: [config]))
+    }
+    let detail = LibraryMetadata(album: Album(id: "detail", title: "Detail", cover: nil, pageCount: 20))
+    let quick = LibraryMetadata(album: Album(id: "quick", title: "Quick", cover: nil, pageCount: 20), source: WnacgSource().name)
+    try autoreleasepool {
+      let writer = try open()
+      writer.context.autosaveEnabled = false
+      try writer.recordVisit(video)
+      try writer.recordVisit(detail, page: 4)
+      try writer.recordVisit(quick)
+      try writer.updateReadingPage(8, key: quick.key)
+      try writer.save()
+      XCTAssertFalse(writer.context.hasChanges)
+    }
+    let reader = try open()
+    let history = try reader.items().filter { $0.lastViewedAt != nil }
+    XCTAssertEqual(Set(history.map(\.key)), [video.key, detail.key, quick.key])
+    XCTAssertEqual(history.filter(\.isComic).count, 2)
+    XCTAssertTrue(history.filter(\.isComic).allSatisfy { $0.source == "wnacg" && $0.isPortrait })
+    XCTAssertEqual(try reader.lastPage(key: detail.key), 4)
+    XCTAssertEqual(try reader.lastPage(key: quick.key), 8)
+  }
+
+  func testRemovingProbeHistoryPreservesOtherHistoryAndFavorites() throws {
+    let store = try store()
+    let owned = LibraryMetadata(album: Album(id: "existing", title: "Existing", cover: nil, pageCount: 20))
+    let probe = LibraryMetadata(album: Album(id: "probe", title: "Probe", cover: nil, pageCount: 20))
+    try store.recordVisit(owned, page: 7)
+    try store.toggleDefault(owned)
+    try store.recordVisit(video)
+    try store.recordVisit(probe, page: 2)
+    try store.remove(try XCTUnwrap(store.item(key: probe.key)), from: nil)
+    let persisted = ModelContext(store.container)
+    let items = try persisted.fetch(FetchDescriptor<SavedMediaItem>())
+    XCTAssertEqual(Set(items.map(\.key)), [owned.key, video.key])
+    let existing = try XCTUnwrap(items.first { $0.key == owned.key })
+    XCTAssertEqual(existing.readingPage, 7)
+    XCTAssertNotNil(existing.lastViewedAt)
+    XCTAssertEqual(existing.folders?.map(\.folderID), ["default"])
+  }
+
 }

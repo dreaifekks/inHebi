@@ -129,7 +129,7 @@ import XCTest
   private func seconds(_ clock: XCUIElement) -> Double {
     Double(clock.label.split(separator: ":").dropFirst().first ?? "0") ?? 0
   }
-  private func verifyPlaying(_ name: String) {
+  private func verifyPlaying(_ name: String, pauseBeforeMenu: Bool = true) {
     let clock = app.staticTexts["player.progress"]
     XCTAssertTrue(clock.waitForExistence(timeout: 45))
     wait("Muted AVPlayer did not start") {
@@ -140,7 +140,8 @@ import XCTest
     wait("AVPlayer did not advance", timeout: 15) { self.seconds(clock) >= start + 2 }
     print("SHELF_PLAYBACK \(name) start=\(start) end=\(seconds(clock)) \(clock.label)")
     screenshot(name)
-    remote.press(.playPause)
+    if pauseBeforeMenu { remote.press(.playPause) }
+    else { XCTAssertTrue(clock.label.hasPrefix("playing:")) }
     for _ in 0..<3 {
       if !clock.exists { break }
       remote.press(.menu)
@@ -151,6 +152,7 @@ import XCTest
     wait("Menu did not stop playback", timeout: 3) {
       self.app.staticTexts["playback.activity"].label.hasPrefix("active=false")
     }
+    XCTAssertFalse(clock.exists, "Player must leave the screen after Menu dismissal")
     let stopped = app.staticTexts["playback.activity"].label
     let stable = expectation(description: "Stopped player stays stopped")
     DispatchQueue.main.asyncAfter(deadline: .now() + 0.7) { stable.fulfill() }
@@ -566,6 +568,25 @@ import XCTest
     verifyPlaying("14-hanime-playing")
     wait("Player close lost Play focus") { self.app.buttons["video.play"].hasFocus }
   }
+  func testMenuDismissesWhilePlayingBothSources() {
+    for source in ["iwara", "Hanime1"] {
+      launch()
+      if source == "Hanime1" {
+        tab(source)
+        ready()
+        select(app.buttons["chip.Cosplay"])
+      } else {
+        ready()
+        select(app.buttons["filter.primary"])
+      }
+      ready()
+      focus(cards().firstMatch)
+      remote.press(.playPause)
+      verifyPlaying("menu-playing-" + source, pauseBeforeMenu: false)
+      app.terminate()
+    }
+  }
+
   func testPlaybackEndsBackAtDetail() {
     launch(["--ui-test-playback-end"])
     tab("Hanime1")
@@ -843,12 +864,18 @@ import XCTest
     wait("Thumbnail Up must close") { !self.app.buttons["reader.spread"].exists }
     remote.press(.up)
     currentThumbnail(17)
+    focus(app.buttons["reader.resume"])
+    remote.press(.up)
+    currentThumbnail(17)
     select(app.buttons["reader.spread"])
     remote.press(.menu)
     for _ in 0..<3 { remote.press(.left) }
     wait("Spread must reach 23/24") {
       self.app.staticTexts["reader.page"].label.hasPrefix("23–24 /")
     }
+    remote.press(.up)
+    currentThumbnail(23)
+    focus(app.buttons["reader.resume"])
     remote.press(.up)
     currentThumbnail(23)
     remote.press(.up)
@@ -896,13 +923,38 @@ import XCTest
     wait("Down must enter Continue Reading") { self.app.buttons["reader.resume"].hasFocus }
     remote.press(.up)
     wait("Up from buttons must enter thumbnails") {
-      self.focused.identifier.hasPrefix("reader.jump.")
+      self.app.buttons["reader.jump.1"].hasFocus
     }
     remote.press(.up)
     wait("Top edge Up must close") { !self.app.buttons["reader.spread"].exists }
     remote.press(.select)
     wait("Select must enter current thumbnail") { self.app.buttons["reader.jump.1"].hasFocus }
     remote.press(.menu)
+  }
+
+  func testReaderClosingBurstDoesNotReopen() {
+    launch(["--ui-reader-close-burst"])
+    openLongAlbum()
+    for key in [XCUIRemote.Button.up, .down] {
+      remote.press(key)
+      let target = app.buttons[key == .up ? "reader.jump.1" : "reader.resume"]
+      wait("Directional entry must focus the intended row") { target.hasFocus }
+      let quiet = expectation(description: "Opening direction grace period")
+      DispatchQueue.main.asyncAfter(deadline: .now() + 1.1) { quiet.fulfill() }
+      wait(for: [quiet], timeout: 2)
+      remote.press(key)
+      wait("Closing swipe repeats must not reopen the panel") {
+        !self.app.buttons["reader.spread"].exists
+          && self.app.otherElements["reader.canvas"].value as? String == "ignored-reopen=3"
+      }
+      // All repeats, including the one beyond the original deadline, were ignored.
+      let released = expectation(description: "Closing burst ends")
+      DispatchQueue.main.asyncAfter(deadline: .now() + 1) { released.fulfill() }
+      wait(for: [released], timeout: 2)
+      remote.press(key)
+      wait("A fresh same-direction press must reopen after quiet") { target.hasFocus }
+      remote.press(.menu)
+    }
   }
 
   func testHanimePortraitGrid() {

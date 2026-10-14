@@ -319,3 +319,10 @@ Base f13d27b/build 17; identifiers and project naming excluded for parallel rena
 - Normal launch without test arguments succeeded with the real persistent container, then exited. Explicit TEST_RUNNER_INHEBI_CLOUD_TEST=1 dedicated test passed 1/1 using --ui-cloud-library, while ordinary UI tests remain in-memory. Account status: 已登录 iCloud. Favorite added and cancelled; newly created empty default folder deleted; cleanup export confirmed.
 - Sanitized cleanup event: 2026-10-14T10:53:00.220 kind=code cloudkit kind=export completed=true success=true error=none. Full trace: artifacts/inhebi-cloudkit-focus.txt. All tests mute playback and terminate the application; no screenshots were opened.
 - Normal install runs after commit; receipt: artifacts/inhebi-normal-install.log. No push, amend, rebase or merge of master 97403c2; coordinator retains ownership of combining the reader/player branch.
+
+## Merge and reader review fixes — 2026-10-14
+
+- Merged 09f18c0 into 97403c2 as 61f8457. Reader direction/visibility focus logic and SwiftData page persistence coexist; PlayerScreen keeps recordVisit and leaves Menu to AVKit. Both document histories retained.
+- Merge baseline: 40 offline passed / 3 live skipped; verify.sh generic tvOS build passed. No installed tvOS simulator runtime; no runtime downloaded. Retrieved current device focus trace before reader edits.
+- Reader now remembers the closing direction and extends a 350 ms reopen quiet period on repeated input. Bottom-row Up explicitly requests the actual current thumbnail, scrolling and waiting for visibility when necessary.
+- UI assertions target page 1, later page 17 and spread start 23. Added deterministic closing-burst coverage (100/300/600 ms) and a two-source Menu-while-playing test with no preliminary pause. Device acceptance follows internal rename.

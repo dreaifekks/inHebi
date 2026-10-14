@@ -22,6 +22,10 @@ struct ReaderView: View {
   @State private var openingDirection: MoveCommandDirection?
   @State private var edgeQuietUntil = ContinuousClock.now
   @State private var ignoredEdgeEvents = 0
+  @State private var closingDirection: MoveCommandDirection?
+  @State private var reopenQuietUntil = ContinuousClock.now
+  @State private var ignoredReopenEvents = 0
+  @State private var visibleThumbnails: Set<Int> = []
   @State private var reload = 0
   @State private var hint = false
   @FocusState private var focus: Focus?
@@ -50,6 +54,7 @@ struct ReaderView: View {
           .contentShape(Rectangle()).focusable(!controls).accessibilityElement(children: .contain)
           .focused($focus, equals: .canvas).accessibilityIdentifier("reader.canvas")
           .accessibilityLabel("第 \(page + 1) 页，共 \(session.pages.count) 页").focusEffectDisabled()
+          .accessibilityValue(TestMode.enabled ? "ignored-reopen=\(ignoredReopenEvents)" : "")
           .onTapGesture { showControls() }
           .onMoveCommand { direction in
             if direction == .left { turn(forward: rightToLeft) }
@@ -83,6 +88,8 @@ struct ReaderView: View {
                       Text("\(index + 1)").font(.system(size: 25))
                     }.id(index)
                       .onScrollVisibilityChange { visible in
+                        if visible { visibleThumbnails.insert(index) }
+                        else { visibleThumbnails.remove(index) }
                         if visible && pendingFocus == .thumbnail(index) {
                           focus = .thumbnail(index)
                           pendingFocus = nil
@@ -94,6 +101,15 @@ struct ReaderView: View {
               }.focusSection().background(.regularMaterial)
                 .onAppear {
                   proxy.scrollTo(page, anchor: .center)
+                }
+                .onChange(of: pendingFocus) { _, target in
+                  if case .thumbnail(let index) = target {
+                    proxy.scrollTo(index, anchor: .center)
+                    if visibleThumbnails.contains(index) {
+                      focus = target
+                      pendingFocus = nil
+                    }
+                  }
                 }
                 .onMoveCommand { direction in
                   if direction == .up { closeControls(on: direction) }
@@ -133,6 +149,7 @@ struct ReaderView: View {
               .frame(maxWidth: .infinity).focusSection()
               .onMoveCommand { direction in
                 if direction == .down { closeControls(on: direction) }
+                if direction == .up { pendingFocus = .thumbnail(page) }
               }
           }
         }.frame(maxWidth: .infinity, alignment: .trailing).padding(.bottom, 32)
@@ -163,6 +180,7 @@ struct ReaderView: View {
           "reader controls=\(value) page=\(page + 1) focus=\(String(describing: focus))")
         if !value {
           pendingFocus = nil
+          visibleThumbnails.removeAll()
           focus = .canvas
         }
       }
@@ -190,11 +208,20 @@ struct ReaderView: View {
     return spread && last > page + 1
       ? "\(page + 1)–\(last) / \(session.pages.count)" : "\(page + 1) / \(session.pages.count)"
   }
-  private func showControls(direction: MoveCommandDirection? = nil) {
+  private func showControls(
+    direction: MoveCommandDirection? = nil, at now: ContinuousClock.Instant = .now
+  ) {
+    if let direction, direction == closingDirection, now < reopenQuietUntil {
+      reopenQuietUntil = now.advanced(by: .milliseconds(350))
+      ignoredReopenEvents += 1
+      FocusTrace.mark("reader ignore-closing-burst count=\(ignoredReopenEvents)")
+      return
+    }
+    closingDirection = nil
     entryFocus = direction == .down ? .resume : .thumbnail(page)
     pendingFocus = entryFocus
     openingDirection = direction
-    let openedAt = ContinuousClock.now
+    let openedAt = now
     // Allow the initial panel layout/focus transition to finish before an edge
     // event from the opening swipe can dismiss it.
     edgeQuietUntil = openedAt.advanced(by: .seconds(1))
@@ -223,7 +250,17 @@ struct ReaderView: View {
       FocusTrace.mark("reader ignore-opening-burst count=\(ignoredEdgeEvents)")
       return
     }
+    closingDirection = direction
+    reopenQuietUntil = now.advanced(by: .milliseconds(350))
+    ignoredReopenEvents = 0
     controls = false
+    if TestMode.enabled,
+      ProcessInfo.processInfo.arguments.contains("--ui-reader-close-burst")
+    {
+      for milliseconds in [100, 300, 600] {
+        showControls(direction: direction, at: now.advanced(by: .milliseconds(milliseconds)))
+      }
+    }
   }
   private func close() {
     focus = nil

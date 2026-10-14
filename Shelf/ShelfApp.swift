@@ -4,9 +4,12 @@ import SwiftData
 import CloudKit
 
 @MainActor @Observable final class AppModel {
-  let library = LibraryStore(container: try! LibraryStore.makeContainer(inMemory: TestMode.enabled))
+  let library = LibraryStore(container: try! LibraryStore.makeContainer(inMemory: TestMode.inMemoryLibrary))
   var libraryError: String?
   var cloudAccountStatus = "正在检查 iCloud…"
+  #if DEBUG
+  var cloudExportCount = 0
+  #endif
   private var cloudMonitor: CloudSyncMonitor?
   let iwara = IwaraSource()
   let wnacg = WnacgSource()
@@ -18,7 +21,7 @@ import CloudKit
   var startupError: String?
   private let keychain = KeychainStore()
   func restore() async {
-    if !TestMode.enabled {
+    if !TestMode.inMemoryLibrary {
       cloudMonitor = CloudSyncMonitor(model: self)
       UIApplication.shared.registerForRemoteNotifications()
     }
@@ -83,6 +86,14 @@ import CloudKit
               "active=\(PlaybackActivity.shared.active);stopped=\(PlaybackActivity.shared.stoppedTime)"
           ).font(.system(size: 12)).accessibilityIdentifier("playback.activity")
         }
+      }
+      .overlay(alignment: .bottomTrailing) {
+        #if DEBUG
+        if TestMode.cloudLibrary {
+          Text("exports=\(model.cloudExportCount)").font(.system(size: 12))
+            .accessibilityIdentifier("cloudkit.exports")
+        }
+        #endif
       }
       .environment(model)
       .modelContainer(model.library.container)

@@ -57,6 +57,10 @@ enum MediaText {
       false
     #endif
   }
+  static var cloudLibrary: Bool {
+    enabled && ProcessInfo.processInfo.arguments.contains("--ui-cloud-library")
+  }
+  static var inMemoryLibrary: Bool { enabled && !cloudLibrary }
   static var preferences: UserDefaults {
     enabled ? UserDefaults(suiteName: "com.dreaife.inhebi.uitests.preferences")! : .standard
   }

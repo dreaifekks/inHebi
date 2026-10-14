@@ -3,6 +3,7 @@ import CoreData
 import ShelfCore
 import SwiftData
 import SwiftUI
+import UIKit
 
 extension AppModel {
   func libraryAction(_ action: (LibraryStore) throws -> Void) {
@@ -52,6 +53,9 @@ extension AppModel {
       Task { @MainActor in
         FocusTrace.mark(
           "cloudkit kind=\(kind) completed=\(completed) success=\(success) error=\(error)")
+        #if DEBUG
+        if completed && success && kind == "export" { model?.cloudExportCount += 1 }
+        #endif
         if completed && success && imported {
           model?.libraryAction { try $0.reconcileDuplicates() }
         }
@@ -74,19 +78,79 @@ struct FavoriteButton: View {
   private var selected: Bool { folderIDs.contains("default") }
   private var title: String { folderIDs.isEmpty ? "收藏" : "收藏 · \(folderIDs.count) 个收藏夹" }
   var body: some View {
-    Button {
-      model.libraryAction { try $0.toggleDefault(metadata) }
-    } label: {
-      Label(title, systemImage: selected ? "star.fill" : "star")
-    }
-    .accessibilityLabel(title)
-    .accessibilityValue(selected ? "已收藏" : "未收藏")
-    .accessibilityIdentifier("favorite.toggle")
-    .onLongPressGesture {
-      model.libraryAction { _ = try $0.defaultFolder() }
-      choosing = true
-    }
+    RemoteFavoriteButton(title: title, selected: selected,
+      shortPress: { model.libraryAction { try $0.toggleDefault(metadata) } },
+      longPress: {
+        model.libraryAction { _ = try $0.defaultFolder() }
+        choosing = true
+      })
+    .fixedSize()
     .sheet(isPresented: $choosing) { FolderPicker(metadata: metadata) }
+  }
+}
+
+/// Native Select presses are distinct from touch gestures on the Siri Remote.
+private struct RemoteFavoriteButton: UIViewRepresentable {
+  let title: String
+  let selected: Bool
+  let shortPress: () -> Void
+  let longPress: () -> Void
+  func makeUIView(context: Context) -> Button { Button() }
+  func updateUIView(_ button: Button, context: Context) {
+    button.shortPress = shortPress
+    button.longPress = longPress
+    button.accessibilityLabel = title
+    button.accessibilityValue = selected ? "已收藏" : "未收藏"
+    button.configurationUpdateHandler = { button in
+      var config = UIButton.Configuration.filled()
+      config.title = title
+      config.attributedTitle = AttributedString(title,
+        attributes: AttributeContainer([.font: UIFont.systemFont(ofSize: 29)]))
+      config.image = UIImage(systemName: selected ? "star.fill" : "star")
+      config.preferredSymbolConfigurationForImage = UIImage.SymbolConfiguration(pointSize: 29)
+      config.imagePadding = 12
+      config.cornerStyle = .capsule
+      config.contentInsets = .init(top: 12, leading: 24, bottom: 12, trailing: 24)
+      config.baseBackgroundColor = button.isFocused ? .white : UIColor(white: 0.2, alpha: 1)
+      config.baseForegroundColor = button.isFocused ? .black : .white
+      button.configuration = config
+    }
+    button.setNeedsUpdateConfiguration()
+  }
+  func sizeThatFits(_ proposal: ProposedViewSize, uiView: Button, context: Context) -> CGSize? {
+    uiView.intrinsicContentSize
+  }
+  final class Button: UIButton {
+    var shortPress: () -> Void = {}
+    var longPress: () -> Void = {}
+    private var handledLongPress = false
+    init() {
+      super.init(frame: .zero)
+      accessibilityIdentifier = "favorite.toggle"
+      addTarget(self, action: #selector(selected), for: .primaryActionTriggered)
+      let hold = UILongPressGestureRecognizer(target: self, action: #selector(held(_:)))
+      hold.allowedPressTypes = [NSNumber(value: UIPress.PressType.select.rawValue)]
+      hold.minimumPressDuration = 0.5
+      addGestureRecognizer(hold)
+    }
+    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+    override func pressesBegan(_ presses: Set<UIPress>, with event: UIPressesEvent?) {
+      if presses.contains(where: { $0.type == .select }) { handledLongPress = false }
+      super.pressesBegan(presses, with: event)
+    }
+    @objc private func selected() {
+      if !handledLongPress {
+        FocusTrace.mark("favorite short-press")
+        shortPress()
+      }
+    }
+    @objc private func held(_ gesture: UILongPressGestureRecognizer) {
+      if gesture.state == .began {
+        handledLongPress = true
+        FocusTrace.mark("favorite long-press")
+        longPress()
+      }
+    }
   }
 }
 

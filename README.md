@@ -28,7 +28,7 @@ Generic 编译不需要 tvOS 模拟器运行时。未下载模拟器运行时；
 ## 签名与 Apple TV 安装
 
 - Bundle ID：`com.dreaife.inhebi`；自动签名；默认团队 **ALZ45VUZFN**，来自本机 Apple Development 公钥证书的 OU 字段，且与本机 Developer ID 团队一致。本机另有一个开发团队；若要使用其他团队，在 Shelf target → Signing & Capabilities 中选择。
-- 在 Xcode → Settings → Apple Accounts 登录开发者账号，确认目标团队和自动签名可用。
+- Xcode → Settings → Apple Accounts 已登录开发者账号，签名优先使用该账号（团队 ALZ45VUZFN）。运行脚本前先执行 `unset SHELF_AUTH_KEY_PATH SHELF_AUTH_KEY_ID SHELF_AUTH_KEY_ISSUER`，保留 `-allowProvisioningUpdates`。
 - Apple TV 和 Mac 接入同一网络。在 Apple TV 的“设置 → 遥控器与设备 → 遥控 App 与设备”进入配对界面。
 - Xcode 27 使用 **Xcode → Open Developer Tool → Device Hub**（或运行目标菜单里的 Manage Devices），添加并配对 Apple TV，输入电视显示的配对码。按 Xcode/设备提示完成开发准备。
 - 将运行目标选为该 Apple TV，点击 Run。Xcode 注册设备并生成开发 provisioning profile；以后签名/profile 过期时重新构建安装。
@@ -47,7 +47,7 @@ Generic 编译不需要 tvOS 模拟器运行时。未下载模拟器运行时；
 - 登录：仅 user token 存 Keychain，access token 留内存并按 JWT exp 刷新。换 token 返回 401/403 时清理过期会话，退回游客并在设置提示。密码提交后或离开设置清空。
 - 阅读：按屏幕适配完整页面；默认左键下一页，设置可改方向。双页以两张图片的实际宽高比适配同一高度，内侧边缘无缝相接、整体居中、不裁切。从缩略图跳到或从详情续读第 N 页时，配对始终为 N/N+1，不按奇偶重新对齐；默认 N 在右，改为从左往右时 N 在左。双页每次前进或后退两页，后退不早于第 1 页，末尾可只显示一页；记忆配对的起始页，预加载从当前可见页之后开始。
 - Select/上下/播放暂停打开缩略图跳页与工具栏，Menu 先收工具栏再退出；焦点在最底按钮行时再按下直接关闭面板、恢复阅读焦点。页码以 22pt 小字显示在右下角；面板打开时预览页码保持右对齐，位于底部按钮行上方。双页模式记忆在本机，页码存进可同步的观看历史；详情显示“从第 N 页继续”。没有离线图片缓存。
-- 详情返回保留内容、滚动位置和原卡片焦点。网格里 Menu 先回顶部并聚焦选中芯片，再按 Menu 回系统 Tab；从系统 Tab 按下一次进入选中芯片。Menu 和切 Tab 不重新请求已有列表。UI 测试使用独立偏好存储和内存 ModelContainer，不覆盖正常偏好、历史或收藏，也不写入 iCloud。
+- 详情返回保留内容、滚动位置和原卡片焦点。网格里 Menu 先回顶部并聚焦选中芯片，再按 Menu 回系统 Tab；从系统 Tab 按下一次进入选中芯片。Menu 和切 Tab 不重新请求已有列表。常规 UI 测试使用独立偏好存储和内存 ModelContainer，不覆盖正常偏好、历史或收藏，也不写入 iCloud。
 
 ## iCloud 历史与收藏
 
@@ -57,19 +57,31 @@ Generic 编译不需要 tvOS 模拟器运行时。未下载模拟器运行时；
 - “我的”复用 0.4 秒聚焦切换的筛选条，历史在前、收藏夹在后。按来源分区，卡片保持原有列数/比例；Select 进入详情、播放/暂停直接打开。卡片长按菜单可从当前列表移除。右侧固定按钮清空历史或管理当前收藏夹（重命名/删除）；芯片标题、顺序和删除同步更新，删除当前收藏夹后回到“历史”。详情使用独立导航值，取消收藏移除原卡片时仍停留在详情。漫画快速打开直接复用当前列表元数据，只请求页面，不为写历史额外请求详情。
 - 设置显示 iCloud 账号状态；未登录时保留本机数据。iCloud 容器为 `iCloud.com.dreaife.inhebi`，仅使用私有数据库。开发签名使用 **CloudKit Development** 环境。
 - `script/generate-project.py` 同时生成 `Shelf/Shelf.entitlements`，保留 iCloud、推送和 `UIBackgroundModes = remote-notification` 配置；新 App ID 是 `com.dreaife.inhebi`，UI 测试是 `com.dreaife.inhebi.uitests`。内部工程、scheme、目录仍为 Shelf。
-- DEBUG 的 `Library/Caches/inHebi/FocusTrace.txt` 包含 `cloudkit kind=import/export/setup completed=... success=... error=domain:code`，不记录云端条目内容。UI 测试使用内存库，不能用它证明同步；必须正常启动签名 App，产生历史/收藏后核对 `kind=export completed=true success=true`。
+- DEBUG 的 `Library/Caches/inHebi/FocusTrace.txt` 包含 `cloudkit kind=import/export/setup completed=... success=... error=domain:code`，不记录云端条目内容。常规 UI 测试使用内存库，不能证明同步。专用 `testCloudKitExport` 仅在 `TEST_RUNNER_INHEBI_CLOUD_TEST=1` 时运行，通过 DEBUG 的 `--ui-cloud-library` 让这条用例使用真实 CloudKit 库；它检查 iCloud 状态、选择尚未加入默认收藏的条目、收藏后取消，并等待新增和清理的导出。若默认收藏夹为测试新建，也会删除空夹。取日志核对 `kind=export completed=true success=true`。
 - 新应用全新安装，不迁移旧应用的数据或 Keychain。旧 `com.dreaife.shelf` 保留在电视上；新 iwara 登录由用户输入并确认。
 
-### 当前签名阻塞与手动操作
+### Xcode 账号自动签名
 
-2026-10-14：使用 Downloads 较新的 AuthKey 与既有成功安装命令的 Key ID/Issuer ID 验证自动 provisioning，Apple 返回 `Authentication failed`。缓存的通配 profile 不含 Push Notifications、iCloud 或目标容器，不能用于此版本。未确认新 App ID/容器注册成功，未安装新应用，也未确认真机 CloudKit 导出。没有移除 entitlements 或绕过签名。
+2026-10-14：清除三个 API 密钥环境变量后，Xcode 已登录账号自动 provisioning 成功。已核对签名产物和 profile 均包含 `com.dreaife.inhebi`、`iCloud.com.dreaife.inhebi`、CloudKit 和开发推送权限；无需手动创建或关联容器。旧 API 密钥方式同日返回 `Authentication failed`，暂不使用。
 
-1. 在 [App Store Connect → 用户和访问 → 集成 → App Store Connect API](https://appstoreconnect.apple.com/access/integrations/api) 核对 Team Key 是否有效及其 Issuer ID，恢复本项目已授权的 API 签名环境；仍通过 `SHELF_AUTH_KEY_PATH`、`SHELF_AUTH_KEY_ID`、`SHELF_AUTH_KEY_ISSUER` 传入，不写入文件。
-2. 凭据恢复后重试自动 provisioning。若仍不能自动创建容器，在 [Apple Developer → Certificates, Identifiers & Profiles → Identifiers](https://developer.apple.com/account/resources/identifiers/list) 点 `+` → `iCloud Containers`，Description 填 `inHebi`，Identifier 填 `iCloud.com.dreaife.inhebi`。
-3. 在同一 Identifiers 页面创建或编辑显式 App ID `com.dreaife.inhebi`（Description `inHebi`），启用 `iCloud` / CloudKit 和 `Push Notifications`；在 iCloud 的 Configure/Edit 中关联 `iCloud.com.dreaife.inhebi`，保存。然后用脚本重新自动生成开发 profile。
-4. 先跑新增与完整真机测试，再正常安装，使用本机 Apple TV 的 iCloud 账号验证导出成功。没有 tvOS 模拟器运行时，不下载运行时。
+```sh
+unset SHELF_AUTH_KEY_PATH SHELF_AUTH_KEY_ID SHELF_AUTH_KEY_ISSUER
+./script/test-device.sh "$SHELF_DEVICE_ID"
+# 测试通过并提交之后：
+./script/install-device.sh "$SHELF_DEVICE_ID"
+# 专用真实 CloudKit 验收（保持当前安装版本号）：
+TEST_RUNNER_INHEBI_CLOUD_TEST=1 ./script/test-device.sh "$SHELF_DEVICE_ID" \
+  -only-testing:ShelfUITests/ShelfUITests/testCloudKitExport \
+  "CURRENT_PROJECT_VERSION=$(git rev-list --count HEAD)" "SHELF_COMMIT=$(git rev-parse --short HEAD)"
+```
 
 依据：[Apple SwiftData 同步要求](https://developer.apple.com/documentation/swiftdata/syncing-model-data-across-a-persons-devices)、[启用 App 能力](https://developer.apple.com/help/account/identifiers/enable-app-capabilities)。
+
+### 2026-10-14 真机验收
+
+常规 29 项全部取得通过结果：首轮 23 通过 / 6 失败，修正原生 Select 长按、稀疏列表焦点分区、管理窗口关闭后的焦点恢复及测试定位/输入时序后，定向重跑补齐。主屏 inHebi 图标可见且可聚焦，旧 Shelf 保留。正常启动真实 SwiftData/CloudKit 容器成功。
+
+真实 CloudKit 专用用例 1/1 通过，设置显示“已登录 iCloud”；新增收藏后取消，测试新建的空默认夹也已删除。清理后的日志：`2026-10-14T10:53:00.220 kind=code cloudkit kind=export completed=true success=true error=none`。证据在 `artifacts/inhebi-cloudkit-focus.txt`，这里只确认 Apple TV 的真实导入/导出，不代替未来 Mac/iOS 双端同步验收。
 
 ## 数据源接口与易变位置
 
@@ -132,7 +144,7 @@ Generic 编译不需要 tvOS 模拟器运行时。未下载模拟器运行时；
 ./script/test-device.sh "$SHELF_DEVICE_ID" -only-testing:ShelfUITests/ShelfUITests/testReaderJumpResumeAndSpread
 ```
 
-签名可使用 Xcode Apple Accounts，或设置 `SHELF_AUTH_KEY_PATH`、`SHELF_AUTH_KEY_ID`、`SHELF_AUTH_KEY_ISSUER` 三个环境变量使用 App Store Connect API 密钥。密钥只按本机路径引用，不复制内容；不要把真实标识写入仓库。脚本启用自动 provisioning/设备注册，真机 DerivedData 在 `artifacts/DerivedDataDevice`。结果保存到 `artifacts/device-ui-*.xcresult`；截图导出到 `artifacts/screenshots/`，含英文页面名及 `index.json`。`artifacts/` 已忽略。也可单独运行 `python3 script/export-screenshots.py RESULT.xcresult`。
+签名优先使用已登录的 Xcode Apple Accounts。App Store Connect API 密钥在 2026-10-14 实测认证失败，暂不使用；运行脚本前清除 `SHELF_AUTH_KEY_PATH`、`SHELF_AUTH_KEY_ID`、`SHELF_AUTH_KEY_ISSUER`。脚本仅在显式设置密钥路径时传 API 密钥参数，否则使用 Xcode 账号。密钥只按本机路径引用，不复制内容；不要把真实标识写入仓库。脚本启用自动 provisioning/设备注册，真机 DerivedData 在 `artifacts/DerivedDataDevice`。结果保存到 `artifacts/device-ui-*.xcresult`；截图导出到 `artifacts/screenshots/`，含英文页面名及 `index.json`。`artifacts/` 已忽略。也可单独运行 `python3 script/export-screenshots.py RESULT.xcresult`。
 
 Debug App 同时带 `--ui-testing --mute-playback` 启动参数时静音，显示供测试读取的实际 AVPlayer 状态和播放时间；正常启动不静音、不显示测试状态。Release 不启用测试参数。
 

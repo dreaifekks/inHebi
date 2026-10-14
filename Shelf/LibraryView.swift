@@ -83,7 +83,10 @@ struct LibraryView: View {
                 }
               }
             }
-          }.padding(.horizontal, ShelfLayout.horizontalInset).padding(.vertical, 30)
+          }
+          .frame(maxWidth: .infinity, alignment: .leading)
+          .padding(.horizontal, ShelfLayout.horizontalInset).padding(.vertical, 30)
+          .focusSection()
         }
         .scrollPosition($position)
         .onExitCommand(
@@ -102,13 +105,14 @@ struct LibraryView: View {
         if selection != "history" && !ids.contains(selection) {
           selection = "history"
           focus = .chip("history")
-          controlFocus = .strip
+          if managing == nil { controlFocus = .strip }
         }
         if let managing, !ids.contains(managing.id) { self.managing = nil }
       }
     }
     .ignoresSafeArea(.container, edges: .horizontal)
     .toolbarVisibility(model.readerActive ? .hidden : .visible, for: .tabBar)
+    .accessibilityElement(children: .contain)
     .accessibilityIdentifier("library.screen")
     .fullScreenCover(item: $playback) { PlayerScreen(playback: $0) }
     .navigationDestination(item: $reading) { ReaderView(session: $0) }
@@ -116,7 +120,13 @@ struct LibraryView: View {
     .sheet(
       item: $managing,
       onDismiss: {
-        if selection == "history" { controlFocus = .strip }
+        if selection == "history" {
+          controlFocus = nil
+          Task { @MainActor in
+            await Task.yield()
+            controlFocus = .strip
+          }
+        }
       }
     ) { route in
       FolderManager(folderID: route.id, name: route.name)

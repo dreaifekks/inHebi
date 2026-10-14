@@ -145,6 +145,18 @@ import XCTest
     wait(for: [stable], timeout: 2)
     XCTAssertEqual(app.staticTexts["playback.activity"].label, stopped)
   }
+  func testHomeScreenIcon() {
+    launch()
+    ready()
+    app.terminate()
+    let home = XCUIApplication(bundleIdentifier: "com.apple.HeadBoard")
+    XCTAssertTrue(home.wait(for: .runningForeground, timeout: 15))
+    let icon = home.icons["Shelf"].firstMatch
+    XCTAssertTrue(icon.waitForExistence(timeout: 10))
+    XCTAssertTrue(icon.isHittable)
+    XCTAssertTrue(icon.hasFocus)
+    screenshot("55-home-icon")
+  }
   func testMediaGridFiltersAndSearch() {
     launch()
     ready()

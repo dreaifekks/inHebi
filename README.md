@@ -152,3 +152,9 @@ xcrun devicectl device copy from --device "$SHELF_DEVICE_ID" \
 同时说明当时的数据源、是否刚切分类，以及最后几次是点按还是滑动。日志跨启动保留尾部，但后续操作会覆盖旧行；tvOS 缓存也可能被系统清理。
 
 单次入条回归 `testSingleUpdateStripEntry` 在三个源选中非首项，分别从顶栏和网格左侧进入，断言原生焦点更新计数只增加 1；计数仅 UI 测试模式可见。
+
+## tvOS 品牌资源
+
+`Shelf/Assets.xcassets/ShelfBrand.brandassets` 包含主屏 Small（400×240 / 800×480）、App Store Large（1280×768）两个三层 image stack，以及普通/宽版 Top Shelf 的 1x/2x。图层从后到前为 Back（背景）、Middle（架板）、Front（书与播放屏）；imagestack JSON 按 Front、Middle、Back 登记。13 张 PNG 原样保留尺寸、透明边缘和不透明背景，均已纳入 git，构建不依赖 artifacts。
+
+App Icons Source 为 `ShelfBrand`，在 `script/generate-project.py` 中维护，重新生成工程不会丢失资源或配置。`testHomeScreenIcon` 在退出应用后检查系统主屏上的 Shelf 图标存在、可见且已聚焦，并保留截图。真机主屏已显示新图标和静态 Top Shelf；真实遥控器的三层视差手感需人工确认。

@@ -13,6 +13,9 @@ for f in files:
     refs.append(ref)
     builds.append(add('build'+f.name, '{isa = PBXBuildFile; fileRef = %s;}'%ref))
 def array(values): return '(' + ','.join(values) + ',)'
+assetRef=add('assetCatalog','{isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>";}')
+refs.append(assetRef)
+assetBuild=add('assetCatalogBuild','{isa = PBXBuildFile; fileRef = %s;}'%assetRef)
 product=add('product','{isa = PBXFileReference; explicitFileType = wrapper.application; path = Shelf.app; sourceTree = BUILT_PRODUCTS_DIR;}')
 appGroup=add('appGroup','{isa = PBXGroup; path = Shelf; sourceTree = "<group>"; children = %s;}'%array(refs))
 products=add('products','{isa = PBXGroup; name = Products; sourceTree = "<group>"; children = (%s,);}'%product)
@@ -22,13 +25,13 @@ packageProduct=add('packageProduct','{isa = XCSwiftPackageProductDependency; pac
 packageBuild=add('packageBuild','{isa = PBXBuildFile; productRef = %s;}'%packageProduct)
 sources=add('sources','{isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = %s; runOnlyForDeploymentPostprocessing = 0;}'%array(builds))
 frameworks=add('frameworks','{isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (%s,); runOnlyForDeploymentPostprocessing = 0;}'%packageBuild)
-resources=add('resources','{isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0;}')
+resources=add('resources','{isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (%s,); runOnlyForDeploymentPostprocessing = 0;}'%assetBuild)
 projectConfigs=[]; targetConfigs=[]
 for config in ['Debug','Release']:
     settings='CLANG_ENABLE_MODULES = YES; SDKROOT = appletvos; TVOS_DEPLOYMENT_TARGET = 18.0; SWIFT_VERSION = 6.0;'
     settings+= ' SWIFT_OPTIMIZATION_LEVEL = "-Onone"; DEBUG_INFORMATION_FORMAT = dwarf; SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG; ENABLE_TESTABILITY = YES;' if config=='Debug' else ' SWIFT_COMPILATION_MODE = wholemodule; DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";'
     projectConfigs.append(add('project'+config,'{isa = XCBuildConfiguration; name = %s; buildSettings = {%s};}'%(config,settings)))
-    targetSettings='''CODE_SIGN_STYLE = Automatic; DEVELOPMENT_TEAM = ALZ45VUZFN; PRODUCT_BUNDLE_IDENTIFIER = com.dreaife.shelf; PRODUCT_NAME = "$(TARGET_NAME)"; TARGETED_DEVICE_FAMILY = 3; SUPPORTED_PLATFORMS = "appletvos appletvsimulator"; GENERATE_INFOPLIST_FILE = YES; INFOPLIST_FILE = Shelf/Info.plist; SHELF_COMMIT = development; INFOPLIST_KEY_CFBundleDisplayName = Shelf; INFOPLIST_KEY_UILaunchScreen_Generation = YES; MARKETING_VERSION = 1.0; CURRENT_PROJECT_VERSION = 1; LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks"; SWIFT_EMIT_LOC_STRINGS = YES;'''
+    targetSettings='''ASSETCATALOG_COMPILER_APPICON_NAME = ShelfBrand; CODE_SIGN_STYLE = Automatic; DEVELOPMENT_TEAM = ALZ45VUZFN; PRODUCT_BUNDLE_IDENTIFIER = com.dreaife.shelf; PRODUCT_NAME = "$(TARGET_NAME)"; TARGETED_DEVICE_FAMILY = 3; SUPPORTED_PLATFORMS = "appletvos appletvsimulator"; GENERATE_INFOPLIST_FILE = YES; INFOPLIST_FILE = Shelf/Info.plist; SHELF_COMMIT = development; INFOPLIST_KEY_CFBundleDisplayName = Shelf; INFOPLIST_KEY_UILaunchScreen_Generation = YES; MARKETING_VERSION = 1.0; CURRENT_PROJECT_VERSION = 1; LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks"; SWIFT_EMIT_LOC_STRINGS = YES;'''
     targetConfigs.append(add('target'+config,'{isa = XCBuildConfiguration; name = %s; buildSettings = {%s};}'%(config,targetSettings)))
 pc=add('projectConfigList','{isa = XCConfigurationList; buildConfigurations = %s; defaultConfigurationIsVisible = 0; defaultConfigurationName = Release;}'%array(projectConfigs))
 tc=add('targetConfigList','{isa = XCConfigurationList; buildConfigurations = %s; defaultConfigurationIsVisible = 0; defaultConfigurationName = Release;}'%array(targetConfigs))

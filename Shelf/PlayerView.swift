@@ -11,22 +11,24 @@ struct PlayerScreen: View {
   let playback: VideoPlayback
   @State private var error: String?
   @State private var playbackStatus = "waiting:0"
+  @State private var transportVisible = false
   @Environment(\.dismiss) private var dismiss
   var body: some View {
     SystemPlayer(
       playback: playback, failed: { error = $0 }, progress: { playbackStatus = $0 },
-      finished: { dismiss() }
+      controls: { transportVisible = $0 }, finished: { dismiss() }
     )
     .ignoresSafeArea()
     .overlay(alignment: .topLeading) {
       if TestMode.enabled {
-        Text(playbackStatus).font(.caption.monospacedDigit()).padding(12).background(
+        VStack(alignment: .leading) {
+          Text(playbackStatus).accessibilityIdentifier("player.progress")
+          Text("transport=\(transportVisible)").accessibilityIdentifier("player.controls")
+        }.font(.caption.monospacedDigit()).padding(12).background(
           .black.opacity(0.75)
         ).padding(40)
-          .accessibilityIdentifier("player.progress")
       }
     }
-    .onExitCommand { dismiss() }
     .alert("播放失败", isPresented: Binding(get: { error != nil }, set: { if !$0 { error = nil } })) {
       Button("返回详情") { dismiss() }
     } message: {
@@ -38,9 +40,10 @@ struct SystemPlayer: UIViewControllerRepresentable {
   let playback: VideoPlayback
   let failed: (String) -> Void
   let progress: (String) -> Void
+  let controls: (Bool) -> Void
   let finished: () -> Void
   func makeCoordinator() -> Coordinator {
-    Coordinator(failed: failed, progress: progress, finished: finished)
+    Coordinator(failed: failed, progress: progress, controls: controls, finished: finished)
   }
   func makeUIViewController(context: Context) -> AVPlayerViewController {
     let controller = AVPlayerViewController()
@@ -80,20 +83,32 @@ struct SystemPlayer: UIViewControllerRepresentable {
     var seekingToEnd = false
     let failed: (String) -> Void
     let progress: (String) -> Void
+    let controls: (Bool) -> Void
     let finished: () -> Void
     init(
       failed: @escaping (String) -> Void, progress: @escaping (String) -> Void,
+      controls: @escaping (Bool) -> Void,
       finished: @escaping () -> Void
     ) {
       self.failed = failed
       self.progress = progress
+      self.controls = controls
       self.finished = finished
       super.init()
     }
     func playerViewControllerShouldDismiss(_ playerViewController: AVPlayerViewController) -> Bool {
+      FocusTrace.mark("player AVKit-requested-dismiss")
       playerViewController.player?.pause()
       finished()
       return false  // SwiftUI owns the surrounding presentation.
+    }
+    func playerViewController(
+      _ playerViewController: AVPlayerViewController,
+      willTransitionToVisibilityOfTransportBar visible: Bool,
+      with coordinator: any AVPlayerViewControllerAnimationCoordinator
+    ) {
+      FocusTrace.mark("player transport-visible=\(visible)")
+      controls(visible)
     }
     private func metadata(_ id: AVMetadataIdentifier, value: any NSCopying & NSObjectProtocol)
       -> AVMetadataItem
@@ -142,6 +157,11 @@ struct SystemPlayer: UIViewControllerRepresentable {
             let state = player.timeControlStatus == .playing ? "playing" : "waiting"
             self.progress(
               "\(state):\(String(format: "%.1f", time.seconds)):muted=\(player.isMuted)")
+            if ProcessInfo.processInfo.arguments.contains("--ui-test-controls-probe"),
+              time.seconds >= 3
+            {
+              player.pause()
+            }
             if ProcessInfo.processInfo.arguments.contains("--ui-test-playback-end"),
               !self.seekingToEnd, time.seconds >= 1,
               let duration = player.currentItem?.duration.seconds, duration.isFinite

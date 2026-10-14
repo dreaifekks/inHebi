@@ -29,6 +29,11 @@ struct ReaderView: View {
   @AppStorage("reader.spread", store: TestMode.preferences) private var spread = false
   @AppStorage("reader.rightToLeft", store: TestMode.preferences) private var rightToLeft = true
   @State private var controls = false
+  @State private var entryFocus: Focus = .thumbnail(0)
+  @State private var pendingFocus: Focus?
+  @State private var openingDirection: MoveCommandDirection?
+  @State private var edgeQuietUntil = ContinuousClock.now
+  @State private var ignoredEdgeEvents = 0
   @State private var reload = 0
   @State private var hint = false
   @FocusState private var focus: Focus?
@@ -57,11 +62,11 @@ struct ReaderView: View {
           .contentShape(Rectangle()).focusable(!controls).accessibilityElement(children: .contain)
           .focused($focus, equals: .canvas).accessibilityIdentifier("reader.canvas")
           .accessibilityLabel("第 \(page + 1) 页，共 \(session.pages.count) 页").focusEffectDisabled()
-          .onTapGesture { controls = true }
+          .onTapGesture { showControls() }
           .onMoveCommand { direction in
             if direction == .left { turn(forward: rightToLeft) }
             if direction == .right { turn(forward: !rightToLeft) }
-            if direction == .down || direction == .up { controls = true }
+            if direction == .down || direction == .up { showControls(direction: direction) }
           }
         if hint {
           Text(rightToLeft ? "← 下一页　上一页 →　·　按选择键显示选项" : "← 上一页　下一页 →　·　按选择键显示选项")
@@ -89,12 +94,21 @@ struct ReaderView: View {
                           "跳到第 \(index + 1) 页")
                       Text("\(index + 1)").font(.system(size: 25))
                     }.id(index)
+                      .onScrollVisibilityChange { visible in
+                        if visible && pendingFocus == .thumbnail(index) {
+                          focus = .thumbnail(index)
+                          pendingFocus = nil
+                          FocusTrace.mark("reader visible-thumbnail-focus page=\(index + 1)")
+                        }
+                      }
                   }
                 }.padding(30)
               }.focusSection().background(.regularMaterial)
                 .onAppear {
                   proxy.scrollTo(page, anchor: .center)
-                  focus = .thumbnail(page)
+                }
+                .onMoveCommand { direction in
+                  if direction == .up { closeControls(on: direction) }
                 }
             }
             .frame(height: 313)
@@ -120,14 +134,24 @@ struct ReaderView: View {
               Button("重试图片") { reload += 1 }.accessibilityIdentifier("reader.retry")
               Button("继续阅读") { controls = false }.focused($focus, equals: .resume)
                 .accessibilityIdentifier("reader.resume")
+                .task {
+                  if pendingFocus == .resume {
+                    focus = .resume
+                    pendingFocus = nil
+                  }
+                }
               Button("关闭", action: close).accessibilityIdentifier("reader.close")
             }.padding(30).background(.regularMaterial, in: RoundedRectangle(cornerRadius: 24))
               .frame(maxWidth: .infinity).focusSection()
               .onMoveCommand { direction in
-                if direction == .down { controls = false }
+                if direction == .down { closeControls(on: direction) }
               }
           }
         }.frame(maxWidth: .infinity, alignment: .trailing).padding(.bottom, 32)
+          .defaultFocus($focus, entryFocus)
+          .accessibilityElement(children: .contain)
+          .accessibilityIdentifier("reader.controls")
+          .accessibilityValue(TestMode.enabled ? "ignored=\(ignoredEdgeEvents)" : "")
       }
     }.ignoresSafeArea()
       .toolbarVisibility(.hidden, for: .tabBar)
@@ -146,9 +170,20 @@ struct ReaderView: View {
         focus = nil
         ReaderHistory.save(page, album: session.albumID)
       }
-      .onChange(of: controls) { _, value in if !value { focus = .canvas } }
+      .onChange(of: controls) { _, value in
+        FocusTrace.mark(
+          "reader controls=\(value) page=\(page + 1) focus=\(String(describing: focus))")
+        if !value {
+          pendingFocus = nil
+          focus = .canvas
+        }
+      }
+      .onChange(of: focus) { old, new in
+        FocusTrace.mark(
+          "reader page=\(page + 1) focus=\(String(describing: old))->\(String(describing: new))")
+      }
       .onExitCommand { if controls { controls = false } else { close() } }
-      .onPlayPauseCommand { controls.toggle() }
+      .onPlayPauseCommand { if controls { controls = false } else { showControls() } }
       .task(id: "\(page)|\(spread)") {
         for index in ReaderLayout.prefetchIndices(
           page: page, count: session.pages.count, spread: spread)
@@ -165,6 +200,41 @@ struct ReaderView: View {
     let last = min(session.pages.count, page + (spread ? 2 : 1))
     return spread && last > page + 1
       ? "\(page + 1)–\(last) / \(session.pages.count)" : "\(page + 1) / \(session.pages.count)"
+  }
+  private func showControls(direction: MoveCommandDirection? = nil) {
+    entryFocus = direction == .down ? .resume : .thumbnail(page)
+    pendingFocus = entryFocus
+    openingDirection = direction
+    let openedAt = ContinuousClock.now
+    // Allow the initial panel layout/focus transition to finish before an edge
+    // event from the opening swipe can dismiss it.
+    edgeQuietUntil = openedAt.advanced(by: .seconds(1))
+    ignoredEdgeEvents = 0
+    controls = true
+    FocusTrace.mark("reader open direction=\(String(describing: direction)) page=\(page + 1)")
+    // XCUIRemote has no swipe API. Inject event times deterministically; async
+    // sleeps on a busy UI thread cannot represent a 100ms remote event stream.
+    if TestMode.enabled,
+      ProcessInfo.processInfo.arguments.contains("--ui-reader-direction-burst"), let direction
+    {
+      for milliseconds in [100, 200, 900, 1100] {
+        closeControls(on: direction, at: openedAt.advanced(by: .milliseconds(milliseconds)))
+      }
+    }
+  }
+  private func closeControls(
+    on direction: MoveCommandDirection, at now: ContinuousClock.Instant = .now
+  ) {
+    FocusTrace.mark(
+      "reader edge direction=\(direction) remaining=\(now.duration(to: edgeQuietUntil))")
+    if direction == openingDirection && now < edgeQuietUntil {
+      // Extend until this direction burst has been quiet for 350ms.
+      edgeQuietUntil = max(edgeQuietUntil, now.advanced(by: .milliseconds(350)))
+      ignoredEdgeEvents += 1
+      FocusTrace.mark("reader ignore-opening-burst count=\(ignoredEdgeEvents)")
+      return
+    }
+    controls = false
   }
   private func close() {
     ReaderHistory.save(page, album: session.albumID)

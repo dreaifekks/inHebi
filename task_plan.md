@@ -26,3 +26,14 @@ CoreDevice discovery timed out inside the sandbox; succeeded with authorized hos
 - [x] Restore full column width and original cover ratios; retain 32pt focus clearance.
 - [x] Validate offline tests, verify.sh, and affected device grid tests; record actual focused frames.
 - Release handoff: new commit and normal signed build 17; receipt artifacts/grid-restore-install.log. No further reviewer requested.
+
+# Reader and AVKit panel interaction — 2026-10-14
+
+- [x] Read current handoff, fetch user device focus trace, check parallel-test occupancy.
+- [x] Capture native player key behavior and attempt late-page thumbnail reproduction before fixes (page 17 passed; no claim of reproduction).
+- [x] Implement reader directional entry/edge dismissal and current-page visibility-driven focus; burst acceptance pending below.
+- [x] Keep native AVKit controls, apply only supported changes, document verified limitations.
+- [x] Run offline, verify.sh, and affected device tests without overlapping another session (10 distinct final passes).
+- Release handoff: new commit and normal signed build 18, then requested read-only Claude child review; forward its result unchanged and wait for coordinator decisions.
+
+Scope excludes identifiers, display name, Info.plist and project generator naming, which another worktree owns.

@@ -136,7 +136,14 @@ import XCTest
     wait("AVPlayer did not advance", timeout: 15) { self.seconds(clock) >= start + 2 }
     print("SHELF_PLAYBACK \(name) start=\(start) end=\(seconds(clock)) \(clock.label)")
     screenshot(name)
-    remote.press(.menu)
+    remote.press(.playPause)
+    for _ in 0..<3 {
+      if !clock.exists { break }
+      remote.press(.menu)
+      let settled = expectation(description: "AVKit closes its native control layer")
+      DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { settled.fulfill() }
+      wait(for: [settled], timeout: 2)
+    }
     wait("Menu did not stop playback", timeout: 3) {
       self.app.staticTexts["playback.activity"].label.hasPrefix("active=false")
     }
@@ -489,6 +496,160 @@ import XCTest
     wait("Info probe failed to stop") {
       self.app.staticTexts["playback.activity"].label.hasPrefix("active=false")
     }
+  }
+
+  func testPlayerNativePanelDirections() {
+    launch(["--ui-test-controls-probe"])
+    tab("Hanime1")
+    ready()
+    select(app.buttons["chip.Cosplay"])
+    ready()
+    select(cards().firstMatch)
+    XCTAssertTrue(app.buttons["video.play"].waitForExistence(timeout: 30))
+    for (name, key) in [("up", XCUIRemote.Button.up), ("down", .down), ("select", .select)] {
+      select(app.buttons["video.play"])
+      let clock = app.staticTexts["player.progress"]
+      XCTAssertTrue(clock.waitForExistence(timeout: 30))
+      wait("Muted probe must start") {
+        self.seconds(clock) >= 0.5 && clock.label.contains("muted=true")
+      }
+      let bar = app.staticTexts["player.controls"]
+      let audio = app.cells["AVAudibleSettings"]
+      let info = app.buttons["START_PLAYBACK_FROM_BEGINNING"]
+      func record(_ step: String) {
+        print(
+          "PLAYER_PANEL \(name)-\(step) clock=\(clock.exists ? clock.label : "closed") transport=\(bar.exists ? bar.label : "closed") audioFocus=\(audio.exists && audio.hasFocus) infoVisible=\(info.exists && info.isHittable)"
+        )
+      }
+      remote.press(key)
+      record("first-immediate")
+      if name != "down" {
+        wait("Native transport must appear") { bar.label == "transport=true" }
+      }
+      if name == "up" { XCTAssertTrue(audio.exists) }
+      if name == "down" { wait("Down must open native Info") { info.isHittable } }
+      record("first")
+      remote.press(key)
+      if name == "up" { XCTAssertEqual(bar.label, "transport=true") }
+      if name == "down" { XCTAssertTrue(info.isHittable, "AVKit keeps Info open on repeated Down") }
+      record("second")
+      // The DEBUG probe pauses at three media seconds; inspecting controls never plays a full clip.
+      for index in 1...3 {
+        if !clock.exists { break }
+        remote.press(.menu)
+        wait("Menu transition must finish", timeout: 5) {
+          !clock.exists || bar.label == "transport=false" || !(info.exists && info.isHittable)
+        }
+        if index == 1 { XCTAssertTrue(clock.exists, "First Menu must stay in the native player") }
+        record("menu-\(index)")
+      }
+      wait("Probe must exit playback") {
+        self.app.staticTexts["playback.activity"].label.hasPrefix("active=false")
+      }
+    }
+  }
+
+  @discardableResult private func openLongAlbum() -> String {
+    tab("漫画")
+    ready(true)
+    select(app.buttons["chip.3"])
+    ready(true)
+    let candidate = cards(true).allElementsBoundByIndex.first { card in
+      let id = card.identifier.components(separatedBy: ".card.")[1]
+      return app.otherElements["entry." + id].staticTexts.allElementsBoundByIndex.contains {
+        let prefix = $0.label.prefix(while: { $0.isNumber })
+        return Int(prefix).map { $0 >= 24 } == true
+          && $0.label.dropFirst(prefix.count).hasPrefix("P")
+      }
+    }
+    XCTAssertNotNil(candidate, "Live list must include an album with at least 24 pages")
+    let identifier = candidate!.identifier
+    focus(candidate!)
+    remote.press(.playPause)
+    XCTAssertTrue(app.staticTexts["reader.page"].waitForExistence(timeout: 40))
+    return identifier
+  }
+
+  func testReaderLatePagePanelFocus() {
+    launch()
+    let albumCard = openLongAlbum()
+    for _ in 0..<16 { remote.press(.left) }
+    wait("Reader must reach page 17") {
+      self.app.staticTexts["reader.page"].label.hasPrefix("17 /")
+    }
+    remote.press(.select)
+    func currentThumbnail(_ number: Int) {
+      let target = app.buttons["reader.jump.\(number)"]
+      wait("Panel must focus current page \(number)", timeout: 5) { target.hasFocus }
+      XCTAssertGreaterThanOrEqual(target.frame.minX, 0)
+      XCTAssertLessThanOrEqual(target.frame.maxX, app.frame.maxX)
+      print("READER_PANEL_CURRENT page=\(number) frame=\(target.frame)")
+    }
+    currentThumbnail(17)
+    remote.press(.up)
+    wait("Thumbnail Up must close") { !self.app.buttons["reader.spread"].exists }
+    remote.press(.up)
+    currentThumbnail(17)
+    select(app.buttons["reader.spread"])
+    remote.press(.menu)
+    for _ in 0..<3 { remote.press(.left) }
+    wait("Spread must reach 23/24") {
+      self.app.staticTexts["reader.page"].label.hasPrefix("23–24 /")
+    }
+    remote.press(.up)
+    currentThumbnail(23)
+    remote.press(.up)
+    wait("Spread thumbnail Up must close") { !self.app.buttons["reader.spread"].exists }
+    remote.press(.playPause)
+    currentThumbnail(23)
+    remote.press(.playPause)
+    remote.press(.right)
+    wait("Closed spread panel must restore turns") {
+      self.app.staticTexts["reader.page"].label.hasPrefix("21–22 /")
+    }
+    remote.press(.menu)
+    wait("Reader must return to the original album") { self.app.buttons[albumCard].hasFocus }
+    remote.press(.select)
+    XCTAssertTrue(app.buttons["album.read"].waitForExistence(timeout: 30))
+    XCTAssertTrue(app.buttons["album.read"].label.contains("21"))
+    select(app.buttons["album.read"])
+    XCTAssertTrue(app.staticTexts["reader.page"].waitForExistence(timeout: 40))
+    remote.press(.up)
+    currentThumbnail(21)
+  }
+
+  func testReaderPanelDirectionsAndBurst() {
+    launch(["--ui-reader-direction-burst"])
+    openLongAlbum()
+    let page = app.staticTexts["reader.page"]
+    for key in [XCUIRemote.Button.up, .down] {
+      remote.press(key)
+      let target = app.buttons[key == .up ? "reader.jump.1" : "reader.resume"]
+      wait("Direction must select its entry row") { target.hasFocus }
+      wait("A simulated burst through 1100ms must preserve and extend the opening window") {
+        self.app.otherElements["reader.controls"].value as? String == "ignored=4"
+      }
+      XCTAssertTrue(target.hasFocus)
+      remote.press(key)
+      wait("Same direction after quiet interval must close panel") {
+        !self.app.buttons["reader.spread"].exists
+      }
+      remote.press(.left)
+      wait("Canvas must turn after dismiss") { page.label.hasPrefix("2 /") }
+      remote.press(.right)
+      wait("Canvas must turn back") { page.label.hasPrefix("1 /") }
+    }
+    remote.press(.down)
+    wait("Down must enter Continue Reading") { self.app.buttons["reader.resume"].hasFocus }
+    remote.press(.up)
+    wait("Up from buttons must enter thumbnails") {
+      self.focused.identifier.hasPrefix("reader.jump.")
+    }
+    remote.press(.up)
+    wait("Top edge Up must close") { !self.app.buttons["reader.spread"].exists }
+    remote.press(.select)
+    wait("Select must enter current thumbnail") { self.app.buttons["reader.jump.1"].hasFocus }
+    remote.press(.menu)
   }
 
   func testHanimePortraitGrid() {

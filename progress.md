@@ -253,3 +253,16 @@ Testing cancelled because the build failed.
 
 - Final device acceptance: **9 tests / 0 failures / 470.114s**, result artifacts/device-ui-20261014-163305.xcresult. Covers all symbol lookups and stable widths, complete Left/Right traversal and end visibility, debounce, direct Up/Down entry, loading timing, normal preferences, Menu/three-page pagination and the existing branded home icon. Generic simulator SDK build passed.
 - Inspected the final main strips, all 3 Hanime1 segments, all 6 comic segments, both ends, normal-launch selected states and home icon screenshot. All proposed symbols are legible; Chinese/Japanese/English book glyphs render correctly. Fixed sorting text is now complete. Selected cyan remains obvious outside the strip; no checkmark remains on chips and focused/end labels are not truncated. Segment screenshots taken during switching intentionally show the loading indicator.
+# Reader/card revision — 2026-10-14
+
+Read README and HANDOFF completely; worktree initially clean at b27311c. Retrieved the device focus trace before code changes. No screenshots opened. Device discovery required host CoreDevice access after a sandbox initialization timeout. This revision excludes favorites/history features, iCloud, naming and bundle ID changes.
+
+- `swift test --package-path Packages/ShelfCore`: 31 discovered, 28 passed / 3 live tests skipped / 0 failures (artifacts/reader-core-offline.log). Initial sandbox attempt could not write Clang's module cache; host-access run succeeded.
+- `SHELF_LIVE_TESTS=1 ./script/verify.sh`: 31 passed / 0 failures, then generic tvOS Simulator build succeeded (artifacts/reader-verify.log).
+- No tvOS simulator runtime installed (checked through simctl); no runtime downloaded.
+- Device acceptance running only eight affected grid/reader/focus tests. API-key values and device identifier are filtered before textual logs are written.
+- First affected device run: 7 passed / 1 failed in 513s (artifacts/device-ui-20261014-174632.xcresult). All grid, spread geometry, jump/resume/direction and existing focus regressions passed. The new bottom-row test stopped at an empty button identifier before pressing Down; added explicit identifiers to all six bottom-row buttons and an assertion of the exact focused button before each Down.
+- Bottom-row retest passed 1/1, zero failures (artifacts/device-ui-20261014-175617.xcresult and artifacts/reader-bottom-row-retest.log). Verified Down from each of next/previous/spread/retry/resume/close dismisses without changing the page; canvas then advances normally. Final affected-test coverage: 8 distinct passing tests, zero unresolved failures.
+- Device process check after teardown: Shelf is not running. No video playback exercised and no raw screenshots opened.
+- Final `./script/verify.sh` after the button identifier change passed: offline 28 passed / 3 skipped, generic tvOS Simulator build succeeded (artifacts/reader-final-verify.log). `git diff --check` passed.
+- Normal signed release handoff is build 16, using the newer local AuthKey and the README signing environment variables. Install receipt: artifacts/reader-install.log. Read-only Claude cross-review is the next step after commit/install; its conclusion will be forwarded unchanged to the coordinator.

@@ -37,6 +37,7 @@ struct RemoteImage: View {
   var maxPixelSize = 1600
   var fill = false
   var onLoadStateChange: ((Bool) -> Void)?
+  var onImageSizeChange: ((CGSize) -> Void)?
   @State private var image: UIImage?
   @State private var error: String?
   var body: some View {
@@ -65,7 +66,10 @@ struct RemoteImage: View {
       onLoadStateChange?(false)
       guard let url else { return }
       do {
-        image = try await ImageStore.shared.image(url, referer: referer, maxPixelSize: maxPixelSize)
+        let loaded = try await ImageStore.shared.image(
+          url, referer: referer, maxPixelSize: maxPixelSize)
+        image = loaded
+        onImageSizeChange?(loaded.size)
         onLoadStateChange?(true)
       } catch is CancellationError {} catch let error as URLError where error.code == .cancelled {
       } catch { self.error = error.localizedDescription }

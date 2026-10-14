@@ -110,16 +110,21 @@ public enum ShelfError: LocalizedError, Sendable {
     }
 }
 
-/// Page indices in visual left-to-right order. Reading progresses right-to-left.
+/// Zero-based page indices. A spread always starts at the selected page, regardless of parity.
 public enum ReaderLayout {
-    public static func visibleIndices(page: Int, count: Int, spread: Bool) -> [Int] {
+    public static func visibleIndices(page: Int, count: Int, spread: Bool, rightToLeft: Bool = true) -> [Int] {
         guard count > 0 else { return [] }
         let start = min(max(0, page), count - 1)
-        return spread && start + 1 < count ? [start + 1, start] : [start]
+        guard spread && start + 1 < count else { return [start] }
+        return rightToLeft ? [start + 1, start] : [start, start + 1]
     }
     public static func advanced(page: Int, count: Int, spread: Bool, forward: Bool) -> Int {
         let step = spread ? 2 : 1
         if forward && page + step >= count { return page }
         return min(max(0, page + (forward ? step : -step)), max(0, count - 1))
+    }
+    public static func prefetchIndices(page: Int, count: Int, spread: Bool) -> Range<Int> {
+        let start = min(count, page + (spread ? 2 : 1))
+        return start..<min(count, page + 6)
     }
 }

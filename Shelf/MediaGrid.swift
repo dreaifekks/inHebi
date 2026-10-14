@@ -36,6 +36,7 @@ struct MediaEntry: Identifiable {
 struct MediaGrid<Destination: View>: View {
   let entries: [MediaEntry]
   let width: CGFloat
+  let viewportHeight: CGFloat
   let portrait: Bool
   var comic = false
   var referer: String?
@@ -50,7 +51,14 @@ struct MediaGrid<Destination: View>: View {
   private var spacing: CGFloat { portrait ? ShelfLayout.portraitSpacing : ShelfLayout.videoSpacing }
   private var cardWidth: CGFloat { (width - CGFloat(columns - 1) * spacing) / CGFloat(columns) }
   private var imageHeight: CGFloat {
-    portrait ? cardWidth * (comic ? 4 / 3 : 1.5) : cardWidth * 9 / 16
+    let naturalHeight = portrait ? cardWidth * (comic ? 4 / 3 : 1.5) : cardWidth * 9 / 16
+    let twoRowHeight =
+      (viewportHeight - 2 * ShelfLayout.gridEdgeSpacing - ShelfLayout.rowSpacing) / 2
+    return min(
+      naturalHeight, twoRowHeight - ShelfLayout.cardTextHeight - ShelfLayout.coverTitleSpacing)
+  }
+  private var imageWidth: CGFloat {
+    portrait ? imageHeight / (comic ? 4 / 3 : 1.5) : cardWidth
   }
   var body: some View {
     LazyVGrid(
@@ -58,7 +66,7 @@ struct MediaGrid<Destination: View>: View {
       spacing: ShelfLayout.rowSpacing
     ) {
       ForEach(Array(entries.enumerated()), id: \.element.id) { index, entry in
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .center, spacing: ShelfLayout.coverTitleSpacing) {
           NavigationLink {
             destination(entry.id)
           } label: {
@@ -70,7 +78,7 @@ struct MediaGrid<Destination: View>: View {
                   if loaded { loadedCovers.insert(entry.id) } else { loadedCovers.remove(entry.id) }
                 }
               )
-              .frame(width: cardWidth, height: imageHeight).clipShape(
+              .frame(width: imageWidth, height: imageHeight).clipShape(
                 RoundedRectangle(cornerRadius: ShelfLayout.cardRadius))
               if preparing == entry.id {
                 Text(comic ? "正在打开…" : "准备播放…").font(ShelfLayout.captionFont).padding(10)
@@ -90,16 +98,18 @@ struct MediaGrid<Destination: View>: View {
 
           VStack(alignment: .leading, spacing: 8) {
             Text(entry.title).font(ShelfLayout.titleFont).lineLimit(2).frame(
-              height: 72, alignment: .topLeading)
+              height: 72, alignment: .topLeading
+            )
+            .accessibilityIdentifier("entry.title.\(entry.id)")
             Text(failedID == entry.id ? (quickError ?? "") : entry.subtitle)
               .font(ShelfLayout.captionFont).foregroundStyle(
                 failedID == entry.id ? .orange : .secondary
               )
               .lineLimit(1).frame(height: 30, alignment: .topLeading)
           }.frame(maxWidth: .infinity, alignment: .leading)
-        }
-        .accessibilityElement(children: .contain).accessibilityIdentifier("entry.\(entry.id)")
-        .id(entry.id)
+        }.frame(width: cardWidth)
+          .accessibilityElement(children: .contain).accessibilityIdentifier("entry.\(entry.id)")
+          .id(entry.id)
       }
     }.scrollTargetLayout()
   }

@@ -34,3 +34,13 @@
 - API discovery from stage 2 was not universally stable: iwara related returned repeated HTTP 500 for current newest videos, so the feature is disabled. Author and tag browsing remain verified.
 - Native keyboard submission must target its actual completion button. UI tests now require results inside search.screen and zero results while merely typing, preventing underlying-list false positives.
 - Final verification details, native alternatives and scope exceptions are recorded in progress.md; all generated media, test results and screenshots remain ignored under artifacts/.
+# Reader/card revision findings (2026-10-14)
+
+- Fetched pre-change device focus trace to ignored artifacts/FocusTrace-before-reader-grid.txt before edits.
+- ReaderLayout already pairs from the selected zero-based page; preserve this and strengthen direction, prefetch and arbitrary-start tests.
+- Reader uses separate centered half-width containers plus 6pt spacing; intrinsic image widths are required to join pages at a common height.
+- Existing portrait covers are 320x480pt, so two complete portrait rows do not fit; bound cover height by the actual grid viewport while keeping five columns and native card focus scaling.
+- Nowledge thread search for Shelf/tv-shelf reader/focus returned no matches; repository handoff is the current evidence.
+- Device frame evidence: focused portrait covers end at y=486.5 and titles start at y=498.5 (12pt clear gap); second-row equivalents end at 874/start at 886. Landscape has about 21.8pt clear gap. Both full rows passed viewport bounds.
+- Real page 6/7 spread includes different aspect ratios: rendered left image (0,102.5,583.5,875), right (583.5,102.5,1336.5,875). Their shared edge matches exactly, heights match, and union is centered. LTR page 2/3 also passed.
+- XCTest's action log contains frame prints; the console log is unavailable for this device result. No image attachments were opened.

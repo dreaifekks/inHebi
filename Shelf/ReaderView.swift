@@ -44,25 +44,16 @@ struct ReaderView: View {
     _page = State(initialValue: min(session.startPage, max(0, session.pages.count - 1)))
   }
   private var indices: [Int] {
-    let values = ReaderLayout.visibleIndices(page: page, count: session.pages.count, spread: spread)
-    return rightToLeft ? values : values.reversed()
+    ReaderLayout.visibleIndices(
+      page: page, count: session.pages.count, spread: spread, rightToLeft: rightToLeft)
   }
   private var previewPage: Int { if case .thumbnail(let index) = focus { index } else { page } }
   var body: some View {
     GeometryReader { geometry in
       ZStack(alignment: .bottom) {
         Color.black.ignoresSafeArea()
-        HStack(spacing: 6) {
-          ForEach(indices, id: \.self) { index in
-            RemoteImage(
-              url: session.pages[index], referer: session.referer,
-              maxPixelSize: ShelfLayout.readerPixels
-            ).id("\(index)-\(reload)")
-              .frame(
-                width: spread ? (geometry.size.width - 6) / 2 : geometry.size.width,
-                height: geometry.size.height)
-          }
-        }.frame(maxWidth: .infinity, maxHeight: .infinity)
+        ReaderPages(session: session, indices: indices, reload: reload, size: geometry.size)
+          .frame(maxWidth: .infinity, maxHeight: .infinity)
           .contentShape(Rectangle()).focusable(!controls).accessibilityElement(children: .contain)
           .focused($focus, equals: .canvas).accessibilityIdentifier("reader.canvas")
           .accessibilityLabel("第 \(page + 1) 页，共 \(session.pages.count) 页").focusEffectDisabled()
@@ -78,7 +69,7 @@ struct ReaderView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity).allowsHitTesting(false)
             .accessibilityIdentifier("reader.hint")
         }
-        VStack(spacing: 22) {
+        VStack(alignment: .trailing, spacing: 22) {
           if controls {
             ScrollViewReader { proxy in
               ScrollView(.horizontal, showsIndicators: false) {
@@ -108,23 +99,35 @@ struct ReaderView: View {
             }
             .frame(height: 313)
           }
-          Text(pageLabel).font(.callout.monospacedDigit()).accessibilityIdentifier("reader.page")
-            .padding(.horizontal, 18).padding(.vertical, 8).background(
-              .black.opacity(0.7), in: Capsule())
+          Text(pageLabel).font(.system(size: 22).monospacedDigit()).foregroundStyle(
+            .white.opacity(0.75)
+          )
+          .accessibilityIdentifier("reader.page")
+          .padding(.horizontal, 14).padding(.vertical, 6).background(
+            .black.opacity(0.7), in: Capsule()
+          )
+          .padding(.trailing, 48)
           if controls {
             HStack(spacing: 28) {
               Button("下一页") { turn(forward: true) }.disabled(
-                page + (spread ? 2 : 1) >= session.pages.count)
+                page + (spread ? 2 : 1) >= session.pages.count
+              )
+              .accessibilityIdentifier("reader.next")
               Button("上一页") { turn(forward: false) }.disabled(page == 0)
+                .accessibilityIdentifier("reader.previous")
               Button(spread ? "切换单页" : "双页并排") { spread.toggle() }.accessibilityIdentifier(
                 "reader.spread")
-              Button("重试图片") { reload += 1 }
+              Button("重试图片") { reload += 1 }.accessibilityIdentifier("reader.retry")
               Button("继续阅读") { controls = false }.focused($focus, equals: .resume)
-              Button("关闭", action: close)
+                .accessibilityIdentifier("reader.resume")
+              Button("关闭", action: close).accessibilityIdentifier("reader.close")
             }.padding(30).background(.regularMaterial, in: RoundedRectangle(cornerRadius: 24))
               .frame(maxWidth: .infinity).focusSection()
+              .onMoveCommand { direction in
+                if direction == .down { controls = false }
+              }
           }
-        }.padding(.bottom, 32)
+        }.frame(maxWidth: .infinity, alignment: .trailing).padding(.bottom, 32)
       }
     }.ignoresSafeArea()
       .toolbarVisibility(.hidden, for: .tabBar)
@@ -147,15 +150,13 @@ struct ReaderView: View {
       .onExitCommand { if controls { controls = false } else { close() } }
       .onPlayPauseCommand { controls.toggle() }
       .task(id: "\(page)|\(spread)") {
-        let start = page + (spread ? 2 : 1)
-        let end = min(session.pages.count, page + 6)
-        if start < end {
-          for index in start..<end {
-            if Task.isCancelled { return }
-            _ = try? await ImageStore.shared.image(
-              session.pages[index], referer: session.referer, maxPixelSize: ShelfLayout.readerPixels
-            )
-          }
+        for index in ReaderLayout.prefetchIndices(
+          page: page, count: session.pages.count, spread: spread)
+        {
+          if Task.isCancelled { return }
+          _ = try? await ImageStore.shared.image(
+            session.pages[index], referer: session.referer, maxPixelSize: ShelfLayout.readerPixels
+          )
         }
       }
   }
@@ -173,5 +174,31 @@ struct ReaderView: View {
   private func turn(forward: Bool) {
     page = ReaderLayout.advanced(
       page: page, count: session.pages.count, spread: spread, forward: forward)
+  }
+}
+
+/// Fit both intrinsic widths to one height so the inner image edges meet exactly.
+private struct ReaderPages: View {
+  let session: ReadingSession
+  let indices: [Int]
+  let reload: Int
+  let size: CGSize
+  @State private var aspectRatios: [Int: CGFloat] = [:]
+
+  var body: some View {
+    let totalRatio = indices.reduce(CGFloat.zero) { $0 + (aspectRatios[$1] ?? 2 / 3) }
+    let height = min(size.height, size.width / totalRatio)
+    HStack(spacing: 0) {
+      ForEach(indices, id: \.self) { index in
+        RemoteImage(
+          url: session.pages[index], referer: session.referer,
+          maxPixelSize: ShelfLayout.readerPixels,
+          onImageSizeChange: { aspectRatios[index] = $0.width / $0.height }
+        ).id("\(index)-\(reload)")
+          .frame(width: height * (aspectRatios[index] ?? 2 / 3), height: height)
+          .accessibilityElement(children: .contain)
+          .accessibilityIdentifier("reader.image.\(index + 1)")
+      }
+    }
   }
 }

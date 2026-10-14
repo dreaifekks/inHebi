@@ -1,5 +1,5 @@
-import XCTest
 import UIKit
+import XCTest
 
 @MainActor final class ShelfUITests: XCTestCase {
   let app = XCUIApplication()
@@ -338,6 +338,7 @@ import UIKit
     remote.press(.playPause)
     let page = app.staticTexts["reader.page"]
     XCTAssertTrue(page.waitForExistence(timeout: 40))
+    assertPagePosition(controls: false)
     wait("Reader must hide the Tab bar") {
       !self.app.tabBars.buttons.allElementsBoundByIndex.contains { $0.isHittable }
     }
@@ -347,6 +348,7 @@ import UIKit
     wait("Reader did not reach page 3") { page.label.hasPrefix("3 /") }
     remote.press(.select)
     wait("Jump strip does not focus current page") { self.app.buttons["reader.jump.3"].hasFocus }
+    assertPagePosition(controls: true)
     screenshot("26-reader-toolbar")
     remote.press(.right)
     remote.press(.right)
@@ -359,6 +361,21 @@ import UIKit
     select(app.buttons["reader.spread"])
     remote.press(.menu)
     wait("Spread did not show pages 6-7") { page.label.hasPrefix("6–7 /") }
+    assertJoinedSpread(first: 6, rightToLeft: true)
+    // Jump while already in spread mode. Both parities must start at the selected page.
+    remote.press(.select)
+    remote.press(.left)
+    remote.press(.select)
+    wait("Spread jump must start at page 5") { page.label.hasPrefix("5–6 /") }
+    assertJoinedSpread(first: 5, rightToLeft: true)
+    remote.press(.left)
+    wait("Spread must advance two pages") { page.label.hasPrefix("7–8 /") }
+    remote.press(.right)
+    wait("Spread must return two pages") { page.label.hasPrefix("5–6 /") }
+    remote.press(.select)
+    remote.press(.right)
+    remote.press(.select)
+    wait("Even jump must start at page 6") { page.label.hasPrefix("6–7 /") }
     screenshot("19-reader-spread")
     remote.press(.menu)
     XCTAssertTrue(app.buttons[card].waitForExistence(timeout: 10))
@@ -378,6 +395,7 @@ import UIKit
     remote.press(.select)
     XCTAssertTrue(page.waitForExistence(timeout: 30))
     XCTAssertTrue(page.label.hasPrefix("6–7 /"))
+    assertJoinedSpread(first: 6, rightToLeft: true)
     remote.press(.left)
     wait("Resumed spread did not advance") { page.label.hasPrefix("8–9 /") }
     remote.press(.menu)
@@ -408,6 +426,11 @@ import UIKit
     select(app.buttons["reader.spread"])
     remote.press(.menu)
     wait("Left-opening spread did not show pages 2-3") { page.label.hasPrefix("2–3 /") }
+    assertJoinedSpread(first: 2, rightToLeft: false)
+    remote.press(.right)
+    wait("LTR spread must advance two pages") { page.label.hasPrefix("4–5 /") }
+    remote.press(.left)
+    wait("LTR spread must return two pages") { page.label.hasPrefix("2–3 /") }
     screenshot("30-left-opening-spread")
     remote.press(.menu)
   }
@@ -479,10 +502,103 @@ import UIKit
     select(app.buttons["chip.裏番"])
     ready()
     let first = cards().firstMatch
-    XCTAssertEqual(first.frame.width, 320, accuracy: 2)
-    XCTAssertEqual(first.frame.height, 480, accuracy: 2)
+    XCTAssertEqual(first.frame.height / first.frame.width, 1.5, accuracy: 0.02)
     focus(first)
     screenshot("28-hanime-portrait-grid")
+  }
+
+  private func assertPagePosition(controls: Bool) {
+    let page = app.staticTexts["reader.page"].frame
+    let screen = app.frame
+    XCTAssertGreaterThan(page.minX, screen.midX)
+    XCTAssertGreaterThanOrEqual(screen.maxX - page.maxX, 32)
+    XCTAssertLessThanOrEqual(screen.maxX - page.maxX, 80)
+    XCTAssertLessThan(page.height, 50)
+    if controls {
+      XCTAssertLessThan(page.maxY, app.buttons["reader.spread"].frame.minY)
+    } else {
+      XCTAssertGreaterThanOrEqual(screen.maxY - page.maxY, 20)
+      XCTAssertLessThanOrEqual(screen.maxY - page.maxY, 64)
+    }
+  }
+
+  private func assertJoinedSpread(first: Int, rightToLeft: Bool) {
+    let left = app.otherElements["reader.image.\(rightToLeft ? first + 1 : first)"]
+    let right = app.otherElements["reader.image.\(rightToLeft ? first : first + 1)"]
+    wait("Both spread images must finish loading", timeout: 45) {
+      left.images["image.loaded"].exists && right.images["image.loaded"].exists
+    }
+    let a = left.images["image.loaded"].frame
+    let b = right.images["image.loaded"].frame
+    XCTAssertEqual(a.maxX, b.minX, accuracy: 1, "The inner image edges must join without a gap")
+    XCTAssertEqual(a.minY, b.minY, accuracy: 1)
+    XCTAssertEqual(a.height, b.height, accuracy: 1)
+    XCTAssertEqual(a.union(b).midX, app.frame.midX, accuracy: 1)
+    XCTAssertEqual(a.union(b).midY, app.frame.midY, accuracy: 1)
+    print("JOINED_SPREAD first=\(first) rtl=\(rightToLeft) left=\(a) right=\(b)")
+  }
+
+  func testReaderBottomRowDownClosesControls() {
+    launch()
+    tab("漫画")
+    ready(true)
+    select(app.buttons["chip.3"])
+    ready(true)
+    focus(cards(true).firstMatch)
+    remote.press(.playPause)
+    let page = app.staticTexts["reader.page"]
+    XCTAssertTrue(page.waitForExistence(timeout: 40))
+    remote.press(.left)
+    remote.press(.left)
+    for id in ["next", "previous", "spread", "retry", "resume", "close"] {
+      remote.press(.select)
+      wait("Opening controls must focus current thumbnail") {
+        self.app.buttons["reader.jump.3"].hasFocus
+      }
+      assertPagePosition(controls: true)
+      let button = app.buttons["reader." + id]
+      focus(button)
+      XCTAssertTrue(button.hasFocus)
+      remote.press(.down)
+      wait("Bottom row Down must dismiss controls from \(id)") {
+        !self.app.buttons["reader.spread"].exists
+      }
+      XCTAssertTrue(page.label.hasPrefix("3 /"))
+      assertPagePosition(controls: false)
+    }
+    remote.press(.left)
+    wait("Dismissed panel must restore canvas input") { page.label.hasPrefix("4 /") }
+  }
+
+  func testFocusedGridTitlesAndTwoRows() {
+    launch()
+    for (name, chip, columns) in [("iwara", "trending", 4), ("Hanime1", "裏番", 5), ("漫画", "", 5)] {
+      if name != "iwara" { tab(name) }
+      ready(name == "漫画")
+      select(app.buttons["chip." + chip])
+      ready(name == "漫画")
+      let items = cards(name == "漫画").allElementsBoundByIndex
+      XCTAssertGreaterThanOrEqual(items.count, columns * 2)
+      focus(items[0])
+      let viewport = app.scrollViews["browse.grid"].frame
+      let firstTwoRows = Array(items.prefix(columns * 2))
+      for card in firstTwoRows {
+        let id = card.identifier.components(separatedBy: ".card.")[1]
+        let cell = app.otherElements["entry." + id].frame
+        XCTAssertGreaterThanOrEqual(cell.minY, viewport.minY)
+        XCTAssertLessThanOrEqual(cell.maxY, viewport.maxY, "Two complete rows must fit: \(name)")
+      }
+      for card in [firstTwoRows[0], firstTwoRows[columns]] {
+        focus(card)
+        let id = card.identifier.components(separatedBy: ".card.")[1]
+        let title = app.staticTexts["entry.title." + id]
+        XCTAssertTrue(title.exists)
+        wait("Focused cover and title must not intersect") {
+          !card.frame.intersects(title.frame) && card.frame.maxY <= title.frame.minY
+        }
+        print("CARD_TITLE \(name) cover=\(card.frame) title=\(title.frame)")
+      }
+    }
   }
 
   func testFilterEntryAndSingleStepNavigation() {
@@ -745,7 +861,8 @@ import UIKit
       let gridCount = updates()
       press(.up, row: "strip:chip." + id, stage: name + " single-grid-entry")
       XCTAssertEqual(updates(), gridCount + 1, "Grid entry must be a single native update")
-      screenshot("54-direct-entry-" + (name == "漫画" ? "comic" : name == "Hanime1" ? "hanime" : "iwara"))
+      screenshot(
+        "54-direct-entry-" + (name == "漫画" ? "comic" : name == "Hanime1" ? "hanime" : "iwara"))
     }
   }
   func testNormalDirectionalRows() { directionalRows(normal: true) }

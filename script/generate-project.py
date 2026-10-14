@@ -2,7 +2,15 @@
 """Generate the small, dependency-free Xcode project; run after adding app Swift files."""
 from pathlib import Path
 import hashlib
+import plistlib
 root = Path(__file__).resolve().parent.parent
+# Signing capabilities are generated alongside the project, not edited only in Xcode.
+(root / 'Shelf' / 'Shelf.entitlements').write_bytes(plistlib.dumps({
+    'com.apple.developer.icloud-container-identifiers': ['iCloud.com.dreaife.inhebi'],
+    'com.apple.developer.icloud-services': ['CloudKit'],
+    'com.apple.developer.icloud-container-environment': '$(ICLOUD_ENVIRONMENT)',
+    'aps-environment': '$(APS_ENVIRONMENT)',
+}))
 objects = {}
 def oid(name): return hashlib.sha1(name.encode()).hexdigest()[:24].upper()
 def add(name, body): objects[oid(name)] = body; return oid(name)
@@ -31,7 +39,8 @@ for config in ['Debug','Release']:
     settings='CLANG_ENABLE_MODULES = YES; SDKROOT = appletvos; TVOS_DEPLOYMENT_TARGET = 18.0; SWIFT_VERSION = 6.0;'
     settings+= ' SWIFT_OPTIMIZATION_LEVEL = "-Onone"; DEBUG_INFORMATION_FORMAT = dwarf; SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG; ENABLE_TESTABILITY = YES;' if config=='Debug' else ' SWIFT_COMPILATION_MODE = wholemodule; DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";'
     projectConfigs.append(add('project'+config,'{isa = XCBuildConfiguration; name = %s; buildSettings = {%s};}'%(config,settings)))
-    targetSettings='''ASSETCATALOG_COMPILER_APPICON_NAME = ShelfBrand; CODE_SIGN_STYLE = Automatic; DEVELOPMENT_TEAM = ALZ45VUZFN; PRODUCT_BUNDLE_IDENTIFIER = com.dreaife.inhebi; PRODUCT_NAME = "$(TARGET_NAME)"; TARGETED_DEVICE_FAMILY = 3; SUPPORTED_PLATFORMS = "appletvos appletvsimulator"; GENERATE_INFOPLIST_FILE = YES; INFOPLIST_FILE = Shelf/Info.plist; SHELF_COMMIT = development; INFOPLIST_KEY_CFBundleDisplayName = inHebi; INFOPLIST_KEY_UILaunchScreen_Generation = YES; MARKETING_VERSION = 1.0; CURRENT_PROJECT_VERSION = 1; LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks"; SWIFT_EMIT_LOC_STRINGS = YES;'''
+    targetSettings='''ASSETCATALOG_COMPILER_APPICON_NAME = ShelfBrand; CODE_SIGN_STYLE = Automatic; DEVELOPMENT_TEAM = ALZ45VUZFN; PRODUCT_BUNDLE_IDENTIFIER = com.dreaife.inhebi; PRODUCT_NAME = "$(TARGET_NAME)"; TARGETED_DEVICE_FAMILY = 3; SUPPORTED_PLATFORMS = "appletvos appletvsimulator"; GENERATE_INFOPLIST_FILE = YES; INFOPLIST_FILE = Shelf/Info.plist; CODE_SIGN_ENTITLEMENTS = Shelf/Shelf.entitlements; SHELF_COMMIT = development; INFOPLIST_KEY_CFBundleDisplayName = inHebi; INFOPLIST_KEY_UILaunchScreen_Generation = YES; MARKETING_VERSION = 1.0; CURRENT_PROJECT_VERSION = 1; LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks"; SWIFT_EMIT_LOC_STRINGS = YES;'''
+    targetSettings += ' ICLOUD_ENVIRONMENT = Development; APS_ENVIRONMENT = development;' if config == 'Debug' else ' ICLOUD_ENVIRONMENT = Production; APS_ENVIRONMENT = production;'
     targetConfigs.append(add('target'+config,'{isa = XCBuildConfiguration; name = %s; buildSettings = {%s};}'%(config,targetSettings)))
 pc=add('projectConfigList','{isa = XCConfigurationList; buildConfigurations = %s; defaultConfigurationIsVisible = 0; defaultConfigurationName = Release;}'%array(projectConfigs))
 tc=add('targetConfigList','{isa = XCConfigurationList; buildConfigurations = %s; defaultConfigurationIsVisible = 0; defaultConfigurationName = Release;}'%array(targetConfigs))
@@ -54,7 +63,7 @@ uic=add('uiConfigList','{isa = XCConfigurationList; buildConfigurations = %s; de
 proxy=add('uiProxy','{isa = PBXContainerItemProxy; containerPortal = %s; proxyType = 1; remoteGlobalIDString = %s; remoteInfo = Shelf;}'%(oid('project'),target))
 dep=add('uiDependency','{isa = PBXTargetDependency; target = %s; targetProxy = %s;}'%(target,proxy))
 uiTarget=add('uiTarget','{isa = PBXNativeTarget; buildConfigurationList = %s; buildPhases = (%s,%s,); buildRules = (); dependencies = (%s,); name = ShelfUITests; productName = ShelfUITests; productReference = %s; productType = "com.apple.product-type.bundle.ui-testing";}'%(uic,uiSources,uiFrameworks,dep,uiProduct))
-project=add('project','{isa = PBXProject; attributes = {BuildIndependentTargetsInParallel = YES; LastUpgradeCheck = 2700; TargetAttributes = {%s = {CreatedOnToolsVersion = 27.0; ProvisioningStyle = Automatic;};};}; buildConfigurationList = %s; compatibilityVersion = "Xcode 14.0"; developmentRegion = en; hasScannedForEncodings = 0; knownRegions = (en,Base,); mainGroup = %s; packageReferences = (%s,); productRefGroup = %s; projectDirPath = ""; projectRoot = ""; targets = (%s,);}'%(target,pc,main,package,products,target))
+project=add('project','{isa = PBXProject; attributes = {BuildIndependentTargetsInParallel = YES; LastUpgradeCheck = 2700; TargetAttributes = {%s = {CreatedOnToolsVersion = 27.0; ProvisioningStyle = Automatic; SystemCapabilities = { com.apple.iCloud = {enabled = 1;}; com.apple.Push = {enabled = 1;}; com.apple.BackgroundModes = {enabled = 1;}; };};};}; buildConfigurationList = %s; compatibilityVersion = "Xcode 14.0"; developmentRegion = en; hasScannedForEncodings = 0; knownRegions = (en,Base,); mainGroup = %s; packageReferences = (%s,); productRefGroup = %s; projectDirPath = ""; projectRoot = ""; targets = (%s,);}'%(target,pc,main,package,products,target))
 objects[project]=objects[project].replace('targets = (','targets = (%s,'%uiTarget)
 p=root/'Shelf.xcodeproj';p.mkdir(exist_ok=True)
 (p/'project.pbxproj').write_text('// !$*UTF8*$!\n{archiveVersion = 1; classes = {}; objectVersion = 56; objects = {\n'+'\n'.join(k+' = '+v+';' for k,v in objects.items())+'\n}; rootObject = '+project+';\n}\n')

@@ -13,6 +13,10 @@ struct MediaEntry: Identifiable {
   let cover: URL?
   let badge: String
   let fill: Bool
+  init(_ item: SavedMediaItem) {
+    id = item.key; title = item.title; subtitle = item.subtitle
+    cover = item.cover.flatMap(URL.init(string:)); badge = ""; fill = !item.isComic
+  }
   init(_ video: Video) {
     id = video.id
     title = video.title
@@ -43,6 +47,7 @@ struct MediaGrid<Destination: View>: View {
   var preparing: String?
   var quickError: String?
   var failedID: String?
+  var remove: ((String) -> Void)?
   let destination: (String) -> Destination
   let quick: (String) -> Void
   @State private var loadedCovers = Set<String>()
@@ -87,6 +92,12 @@ struct MediaGrid<Destination: View>: View {
           .accessibilityIdentifier("\(comic ? "album" : "video").card.\(entry.id)")
           .focused(focus, equals: .card(entry.id))
           .onPlayPauseCommand { quick(entry.id) }
+          .contextMenu {
+            if let remove {
+              Button("从这里移除", role: .destructive) { remove(entry.id) }
+                .accessibilityIdentifier("library.remove")
+            }
+          }
 
           VStack(alignment: .leading, spacing: 8) {
             Text(entry.title).font(ShelfLayout.titleFont).lineLimit(2).frame(

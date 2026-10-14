@@ -2,6 +2,7 @@ import ShelfCore
 import SwiftUI
 
 struct VideoDetail: View {
+  @Environment(AppModel.self) private var model
   let source: any VideoSource
   let id: String
   @State private var video: Video?
@@ -51,6 +52,7 @@ struct VideoDetail: View {
               Text(statistics(video)).font(.system(size: 29)).foregroundStyle(.secondary).lineLimit(
                 2)
               HStack(spacing: 24) {
+                FavoriteButton(metadata: LibraryMetadata(video: video, source: source.name))
                 if video.embedURL != nil {
                   Text("外站嵌入视频，无法在 inHebi 播放").font(.system(size: 29)).foregroundStyle(.secondary)
                 } else {
@@ -149,6 +151,7 @@ struct VideoDetail: View {
     do {
       let detail = try await source.video(id: id)
       video = detail
+      try model.library.refresh(LibraryMetadata(video: detail, source: source.name))
       if detail.embedURL == nil {
         streams = try await source.streams(for: detail)
         selected = streams.first?.name ?? ""
@@ -178,7 +181,7 @@ struct VideoDetail: View {
       guard let stream = streams.first(where: { $0.name == selected }) ?? streams.first else {
         throw ShelfError.message("没有可播放的清晰度")
       }
-      playback = VideoPlayback(video: detail, stream: stream)
+      playback = VideoPlayback(video: detail, stream: stream, sourceName: source.name)
     } catch { self.error = error.localizedDescription }
   }
 }
@@ -211,6 +214,7 @@ struct VideoRail: View {
 }
 
 struct AlbumDetail: View {
+  @Environment(AppModel.self) private var model
   let source: any AlbumSource
   let id: String
   @State private var album: Album?
@@ -239,6 +243,7 @@ struct AlbumDetail: View {
                   ])
                 ).font(.system(size: 29)).foregroundStyle(.secondary)
                 HStack(spacing: 24) {
+                  FavoriteButton(metadata: LibraryMetadata(album: album, source: source.name))
                   Button {
                     Task { await openReader(at: lastPage) }
                   } label: {
@@ -296,13 +301,13 @@ struct AlbumDetail: View {
     )
     .defaultFocus($readFocused, true)
     .task {
-      lastPage = ReaderHistory.lastPage(id)
+      lastPage = model.lastReadingPage(id)
       if album == nil { await load() }
     }
     .navigationDestination(item: $reading) { ReaderView(session: $0) }
     .onChange(of: reading) { _, value in
       if value == nil {
-        lastPage = ReaderHistory.lastPage(id)
+        lastPage = model.lastReadingPage(id)
         readFocused = true
       }
     }
@@ -310,7 +315,9 @@ struct AlbumDetail: View {
   private func load() async {
     error = nil
     do {
-      album = try await source.album(id: id)
+      let detail = try await source.album(id: id)
+      album = detail
+      try model.library.refresh(LibraryMetadata(album: detail, source: source.name))
       await Task.yield()
       readFocused = true
     } catch is CancellationError {} catch let error as URLError where error.code == .cancelled {
@@ -322,8 +329,10 @@ struct AlbumDetail: View {
     error = nil
     defer { opening = false }
     do {
+      let pages = try await source.pages(id: id)
+      if let album { try model.library.recordVisit(LibraryMetadata(album: album, source: source.name), page: page) }
       reading = ReadingSession(
-        pages: try await source.pages(id: id), albumID: id,
+        pages: pages, albumID: id,
         referer: source.imageReferer(albumID: id), startPage: page)
     } catch { self.error = error.localizedDescription }
   }

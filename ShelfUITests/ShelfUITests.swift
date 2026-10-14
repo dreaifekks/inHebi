@@ -146,6 +146,87 @@ import XCTest
     wait(for: [stable], timeout: 2)
     XCTAssertEqual(app.staticTexts["playback.activity"].label, stopped)
   }
+  func testFavoritesAndFolders() {
+    launch()
+    ready()
+    select(cards().firstMatch)
+    let star = app.buttons["favorite.toggle"]
+    XCTAssertTrue(star.waitForExistence(timeout: 40))
+    select(star)
+    wait("Short press must add default favorite") { star.value as? String == "已收藏" }
+    remote.press(.select)
+    wait("Short press must remove default favorite") { star.value as? String == "未收藏" }
+    remote.press(.select, forDuration: 1.2)
+    let defaultFolder = app.buttons["favorite.folder.default"]
+    XCTAssertTrue(defaultFolder.waitForExistence(timeout: 10))
+    XCTAssertEqual(defaultFolder.value as? String, "未加入", "Long press must not also toggle the default favorite")
+    select(defaultFolder)
+    wait("Folder must show membership") { defaultFolder.value as? String == "已加入" }
+    select(app.buttons["folder.create"])
+    select(app.textFields["folder.name"])
+    app.typeText("UITest")
+    remote.press(.down); remote.press(.down); remote.press(.down); remote.press(.select)
+    select(app.buttons["folder.save"])
+    let created = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'favorite.folder.' AND label CONTAINS 'UITest'")).firstMatch
+    XCTAssertTrue(created.waitForExistence(timeout: 10))
+    XCTAssertEqual(created.value as? String, "已加入")
+    select(app.buttons["folder.done"])
+    tab("我的")
+    XCTAssertTrue(app.buttons["chip.history"].waitForExistence(timeout: 10))
+    select(app.buttons["chip.default"])
+    XCTAssertTrue(cards().firstMatch.waitForExistence(timeout: 10))
+    let createdChip = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'chip.' AND label == 'UITest'")).firstMatch
+    select(createdChip)
+    XCTAssertTrue(cards().firstMatch.waitForExistence(timeout: 10))
+    focus(cards().firstMatch)
+    remote.press(.select, forDuration: 1.2)
+    select(app.buttons["library.remove"])
+    wait("Long press removal must empty this folder") { self.cards().count == 0 }
+    select(app.buttons["chip.default"])
+    XCTAssertTrue(cards().firstMatch.waitForExistence(timeout: 10), "Other folder membership must remain")
+  }
+  func testLibraryVideoHistory() {
+    launch()
+    ready()
+    let id = cards().firstMatch.identifier.replacingOccurrences(of: "video.card.", with: "")
+    focus(cards().firstMatch)
+    remote.press(.playPause)
+    verifyPlaying("library-muted-history")
+    tab("我的")
+    XCTAssertTrue(app.buttons["chip.history"].waitForExistence(timeout: 10))
+    let stored = app.buttons["video.card.iwara:" + id]
+    XCTAssertTrue(stored.waitForExistence(timeout: 10))
+    select(stored)
+    XCTAssertTrue(app.buttons["video.play"].waitForExistence(timeout: 40))
+  }
+  func testLibraryComicHistoryAndResume() {
+    launch()
+    tab("漫画")
+    ready(true)
+    let id = cards(true).firstMatch.identifier.replacingOccurrences(of: "album.card.", with: "")
+    select(cards(true).firstMatch)
+    let star = app.buttons["favorite.toggle"]
+    XCTAssertTrue(star.waitForExistence(timeout: 40))
+    select(star)
+    wait("Comic favorite must be stored") { star.value as? String == "已收藏" }
+    select(app.buttons["album.read"])
+    let page = app.staticTexts["reader.page"]
+    XCTAssertTrue(page.waitForExistence(timeout: 40))
+    remote.press(.left); remote.press(.left)
+    wait("Read third page") { page.label.hasPrefix("3 /") }
+    remote.press(.menu)
+    wait("Detail must read synchronized page") { self.app.buttons["album.read"].label.contains("第 3 页") }
+    tab("我的")
+    let stored = app.buttons["album.card.wnacg:" + id]
+    XCTAssertTrue(stored.waitForExistence(timeout: 10))
+    focus(stored)
+    remote.press(.playPause)
+    XCTAssertTrue(page.waitForExistence(timeout: 40))
+    XCTAssertTrue(page.label.hasPrefix("3 /"))
+    remote.press(.menu)
+    select(app.buttons["chip.default"])
+    XCTAssertTrue(stored.waitForExistence(timeout: 10))
+  }
   func testChipSymbolsAndStableWidth() {
     for name in FilterSymbols.allNames {
       XCTAssertNotNil(UIImage(systemName: name), "Missing symbol: " + name)

@@ -1,7 +1,13 @@
 import ShelfCore
 import SwiftUI
+import SwiftData
+import CloudKit
 
 @MainActor @Observable final class AppModel {
+  let library = LibraryStore(container: try! LibraryStore.makeContainer(inMemory: TestMode.enabled))
+  var libraryError: String?
+  var cloudAccountStatus = "正在检查 iCloud…"
+  private var cloudMonitor: CloudSyncMonitor?
   let iwara = IwaraSource()
   let wnacg = WnacgSource()
   let hanime = Hanime1Source()
@@ -12,6 +18,12 @@ import SwiftUI
   var startupError: String?
   private let keychain = KeychainStore()
   func restore() async {
+    if !TestMode.enabled {
+      cloudMonitor = CloudSyncMonitor(model: self)
+      UIApplication.shared.registerForRemoteNotifications()
+    }
+    libraryAction { try $0.reconcileDuplicates() }
+    Task { await refreshCloudAccount() }
     await iwara.setExpirationHandler { [weak self] in await self?.sessionExpired() }
     do {
       let token = try keychain.read()
@@ -73,6 +85,13 @@ import SwiftUI
         }
       }
       .environment(model)
+      .modelContainer(model.library.container)
+      .alert("保存失败", isPresented: Binding(get: { model.libraryError != nil }, set: { if !$0 { model.libraryError = nil } })) {
+        Button("好") { model.libraryError = nil }
+      } message: { Text(model.libraryError ?? "") }
+      .onReceive(NotificationCenter.default.publisher(for: .CKAccountChanged)) { _ in
+        Task { await model.refreshCloudAccount() }
+      }
       .tint(.cyan)
       .preferredColorScheme(.dark)
       .task { if !model.ready { await model.restore() } }
@@ -87,6 +106,8 @@ import SwiftUI
           .tabItem { Label("Hanime1", systemImage: "film") }
         NavigationStack { AlbumBrowser(source: model.wnacg) }
           .tabItem { Label("漫画", systemImage: "books.vertical") }
+        NavigationStack { LibraryView() }
+          .tabItem { Label("我的", systemImage: "star.square") }
         NavigationStack { SettingsView(model: model) }
           .tabItem { Label("设置", systemImage: "gearshape") }
       }

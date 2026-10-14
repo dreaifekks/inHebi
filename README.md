@@ -1,6 +1,6 @@
 # inHebi
 
-自用 tvOS 原生应用：iwara / Hanime1 视频、wnacg 漫画。当前状态、用户做过的决定和工作约定见 [docs/HANDOFF.md](docs/HANDOFF.md)。SwiftUI + AVKit + URLSession；无 WebView、后端、下载、播放历史或收藏同步；本地保存筛选偏好与最近 50 本的阅读页码。最低 tvOS 18；ShelfCore 支持 macOS 15 / tvOS 18。唯一外部依赖是 SwiftSoup（锁定文件当前解析为 2.14.2）。
+自用 tvOS 原生应用：iwara / Hanime1 视频、wnacg 漫画。当前状态、用户做过的决定和工作约定见 [docs/HANDOFF.md](docs/HANDOFF.md)。SwiftUI + AVKit + URLSession；无 WebView、后端或下载；SwiftData 保存观看历史、阅读页码和多收藏夹，通过 CloudKit 私有数据库同步。本地保存筛选偏好。最低 tvOS 18；ShelfCore 支持 iOS 18 / macOS 15 / tvOS 18。唯一外部依赖是 SwiftSoup（锁定文件当前解析为 2.14.2）。
 
 ## 打开与验证
 
@@ -37,7 +37,7 @@ Generic 编译不需要 tvOS 模拟器运行时。未下载模拟器运行时；
 
 ## 使用
 
-顶部 Tab 为 iwara、Hanime1、漫画、设置。横版四列、竖版五列，只有封面参与系统 `.card` 焦点放大，文字在外；封面与标题间留 32pt，保留原生放大幅度。封面占满整列并与标题左缘对齐，横版为 16:9、Hanime1 竖版为 2:3、漫画为 3:4；不再按视口高度压缩封面，不要求首屏完整两行，允许竖版第二行仅部分露出；靠近底部自动加载下一页。列数、间距、字体和解码上限集中在 `Shelf/Layout.swift`。
+顶部 Tab 为 iwara、Hanime1、漫画、我的、设置。横版四列、竖版五列，只有封面参与系统 `.card` 焦点放大，文字在外；封面与标题间留 32pt，保留原生放大幅度。封面占满整列并与标题左缘对齐，横版为 16:9、Hanime1 竖版为 2:3、漫画为 3:4；不再按视口高度压缩封面，不要求首屏完整两行，允许竖版第二行仅部分露出；靠近底部自动加载下一页。列数、间距、字体和解码上限集中在 `Shelf/Layout.swift`。
 
 - iwara：横条切排序，右侧分级按钮循环全部/一般/成人；Hanime1：横条切分类，右侧面板切排序。芯片聚焦停留 0.4 秒后切换内容，快速掠过不会请求。右侧按钮仍按下生效。iwara 默认趋势排第一；芯片选择仅在本次运行保留，排序面板/分级继续跨启动记忆。
 - 漫画：最新、所有父类及子类按站点顺序平铺在横条；子类显示“大类·子类”，右侧只保留搜索。
@@ -46,8 +46,30 @@ Generic 编译不需要 tvOS 模拟器运行时。未下载模拟器运行时；
 - 视频详情显示日期、时长、分辨率、播放/喜欢/评论或好评、分级/分类；简介是可展开的按钮。系统播放器带标题/作者/封面，结束返回来源页面，退出即停止。
 - 登录：仅 user token 存 Keychain，access token 留内存并按 JWT exp 刷新。换 token 返回 401/403 时清理过期会话，退回游客并在设置提示。密码提交后或离开设置清空。
 - 阅读：按屏幕适配完整页面；默认左键下一页，设置可改方向。双页以两张图片的实际宽高比适配同一高度，内侧边缘无缝相接、整体居中、不裁切。从缩略图跳到或从详情续读第 N 页时，配对始终为 N/N+1，不按奇偶重新对齐；默认 N 在右，改为从左往右时 N 在左。双页每次前进或后退两页，后退不早于第 1 页，末尾可只显示一页；记忆配对的起始页，预加载从当前可见页之后开始。
-- Select/上下/播放暂停打开缩略图跳页与工具栏，Menu 先收工具栏再退出；焦点在最底按钮行时再按下直接关闭面板、恢复阅读焦点。页码以 22pt 小字显示在右下角；面板打开时预览页码保持右对齐，位于底部按钮行上方。双页模式和页码记忆在本机；详情显示“从第 N 页继续”。没有离线图片缓存。
-- 详情返回保留内容、滚动位置和原卡片焦点。网格里 Menu 先回顶部并聚焦选中芯片，再按 Menu 回系统 Tab；从系统 Tab 按下一次进入选中芯片。Menu 和切 Tab 不重新请求已有列表。UI 测试使用独立偏好存储，不覆盖正常使用偏好。
+- Select/上下/播放暂停打开缩略图跳页与工具栏，Menu 先收工具栏再退出；焦点在最底按钮行时再按下直接关闭面板、恢复阅读焦点。页码以 22pt 小字显示在右下角；面板打开时预览页码保持右对齐，位于底部按钮行上方。双页模式记忆在本机，页码存进可同步的观看历史；详情显示“从第 N 页继续”。没有离线图片缓存。
+- 详情返回保留内容、滚动位置和原卡片焦点。网格里 Menu 先回顶部并聚焦选中芯片，再按 Menu 回系统 Tab；从系统 Tab 按下一次进入选中芯片。Menu 和切 Tab 不重新请求已有列表。UI 测试使用独立偏好存储和内存 ModelContainer，不覆盖正常偏好、历史或收藏，也不写入 iCloud。
+
+## iCloud 历史与收藏
+
+- 模型和读写接口在 `Packages/ShelfCore/Sources/ShelfCore/LibraryStore.swift`，不依赖 tvOS UI。`SavedMediaItem` 保存来源、站点 ID、标题、封面链接、卡片方向、最近观看时间及零基阅读页码；`FavoriteFolder` 保存稳定 ID、名称和创建时间，通过可选双向多对多关系关联条目。所有持久化属性有默认值或可选，没有唯一约束。默认收藏夹 ID 为 `default`，首次收藏时创建；导入完成后合并跨设备同时创建的重复条目/默认夹。
+- 视频开始播放、打开漫画时写入历史，同一来源与 ID 只更新时间；翻页和退出阅读器保存页码。详情刷新后更新已经保存的标题和封面。清空历史同时清除续读页码，但保留收藏。
+- 视频/漫画详情的星标短按切换默认收藏，长按打开带选中状态的收藏夹列表，可逐个切换或新建收藏夹；属于任一收藏夹即实心星标。
+- “我的”复用 0.4 秒聚焦切换的筛选条，历史在前、收藏夹在后。按来源分区，卡片保持原有列数/比例；Select 进入详情、播放/暂停直接打开。卡片长按菜单可从当前列表移除。右侧固定按钮清空历史或管理当前收藏夹（重命名/删除）。
+- 设置显示 iCloud 账号状态；未登录时保留本机数据。iCloud 容器为 `iCloud.com.dreaife.inhebi`，仅使用私有数据库。开发签名使用 **CloudKit Development** 环境。
+- `script/generate-project.py` 同时生成 `Shelf/Shelf.entitlements`，保留 iCloud、推送和 `UIBackgroundModes = remote-notification` 配置；新 App ID 是 `com.dreaife.inhebi`，UI 测试是 `com.dreaife.inhebi.uitests`。内部工程、scheme、目录仍为 Shelf。
+- DEBUG 的 `Library/Caches/inHebi/FocusTrace.txt` 包含 `cloudkit kind=import/export/setup completed=... success=... error=domain:code`，不记录云端条目内容。UI 测试使用内存库，不能用它证明同步；必须正常启动签名 App，产生历史/收藏后核对 `kind=export completed=true success=true`。
+- 新应用全新安装，不迁移旧应用的数据或 Keychain。旧 `com.dreaife.shelf` 保留在电视上；新 iwara 登录由用户输入并确认。
+
+### 当前签名阻塞与手动操作
+
+2026-10-14：使用 Downloads 较新的 AuthKey 与既有成功安装命令的 Key ID/Issuer ID 验证自动 provisioning，Apple 返回 `Authentication failed`。缓存的通配 profile 不含 Push Notifications、iCloud 或目标容器，不能用于此版本。未确认新 App ID/容器注册成功，未安装新应用，也未确认真机 CloudKit 导出。没有移除 entitlements 或绕过签名。
+
+1. 在 [App Store Connect → 用户和访问 → 集成 → App Store Connect API](https://appstoreconnect.apple.com/access/integrations/api) 核对 Team Key 是否有效及其 Issuer ID，恢复本项目已授权的 API 签名环境；仍通过 `SHELF_AUTH_KEY_PATH`、`SHELF_AUTH_KEY_ID`、`SHELF_AUTH_KEY_ISSUER` 传入，不写入文件。
+2. 凭据恢复后重试自动 provisioning。若仍不能自动创建容器，在 [Apple Developer → Certificates, Identifiers & Profiles → Identifiers](https://developer.apple.com/account/resources/identifiers/list) 点 `+` → `iCloud Containers`，Description 填 `inHebi`，Identifier 填 `iCloud.com.dreaife.inhebi`。
+3. 在同一 Identifiers 页面创建或编辑显式 App ID `com.dreaife.inhebi`（Description `inHebi`），启用 `iCloud` / CloudKit 和 `Push Notifications`；在 iCloud 的 Configure/Edit 中关联 `iCloud.com.dreaife.inhebi`，保存。然后用脚本重新自动生成开发 profile。
+4. 先跑新增与完整真机测试，再正常安装，使用本机 Apple TV 的 iCloud 账号验证导出成功。没有 tvOS 模拟器运行时，不下载运行时。
+
+依据：[Apple SwiftData 同步要求](https://developer.apple.com/documentation/swiftdata/syncing-model-data-across-a-persons-devices)、[启用 App 能力](https://developer.apple.com/help/account/identifiers/enable-app-capabilities)。
 
 ## 数据源接口与易变位置
 

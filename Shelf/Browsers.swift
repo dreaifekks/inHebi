@@ -2,6 +2,7 @@ import ShelfCore
 import SwiftUI
 
 struct VideoBrowser: View {
+  @Environment(AppModel.self) private var model
   let source: any VideoSource
   let authRevision: Int
   var searchQuery: String?
@@ -98,7 +99,7 @@ struct VideoBrowser: View {
       guard let stream = try await source.streams(for: video).first else {
         throw ShelfError.message("没有可播放的清晰度")
       }
-      playback = VideoPlayback(video: video, stream: stream)
+      playback = VideoPlayback(video: video, stream: stream, sourceName: source.name)
     } catch {
       failedID = id
       quickError = error.localizedDescription
@@ -109,6 +110,7 @@ struct VideoBrowser: View {
 }
 
 struct AlbumBrowser: View {
+  @Environment(AppModel.self) private var model
   let source: any AlbumSource
   var searchQuery: String?
   var tag: String?
@@ -169,9 +171,11 @@ struct AlbumBrowser: View {
     defer { preparing = nil }
     do {
       let pages = try await source.pages(id: id)
+      let album = try await source.album(id: id)
+      try model.library.recordVisit(LibraryMetadata(album: album, source: source.name))
       reading = ReadingSession(
         pages: pages, albumID: id, referer: source.imageReferer(albumID: id),
-        startPage: ReaderHistory.lastPage(id))
+        startPage: model.lastReadingPage(id))
     } catch {
       failedID = id
       quickError = error.localizedDescription

@@ -1,6 +1,6 @@
-# Shelf
+# inHebi
 
-自用 tvOS 原生应用：iwara / Hanime1 视频、wnacg 漫画。当前状态、用户做过的决定和工作约定见 [docs/HANDOFF.md](docs/HANDOFF.md)。SwiftUI + AVKit + URLSession；无 WebView、后端、下载、播放历史或收藏同步；本地保存筛选偏好与最近 50 本的阅读页码。最低 tvOS 18；ShelfCore 支持 macOS 15 / tvOS 18。唯一外部依赖是 SwiftSoup（锁定文件当前解析为 2.14.2）。
+自用 tvOS 原生应用：iwara / Hanime1 视频、wnacg 漫画。当前状态、用户做过的决定和工作约定见 [docs/HANDOFF.md](docs/HANDOFF.md)。SwiftUI + AVKit + URLSession；无 WebView、后端或下载；SwiftData 保存观看历史、阅读页码和多收藏夹，通过 CloudKit 私有数据库同步。本地保存筛选偏好。最低 tvOS 18；ShelfCore 支持 iOS 18 / macOS 15 / tvOS 18。唯一外部依赖是 SwiftSoup（锁定文件当前解析为 2.14.2）。
 
 ## 打开与验证
 
@@ -27,8 +27,8 @@ Generic 编译不需要 tvOS 模拟器运行时。未下载模拟器运行时；
 
 ## 签名与 Apple TV 安装
 
-- Bundle ID：`com.dreaife.shelf`；自动签名；默认团队 **ALZ45VUZFN**，来自本机 Apple Development 公钥证书的 OU 字段，且与本机 Developer ID 团队一致。本机另有一个开发团队；若要使用其他团队，在 Shelf target → Signing & Capabilities 中选择。
-- 在 Xcode → Settings → Apple Accounts 登录开发者账号，确认目标团队和自动签名可用。
+- Bundle ID：`com.dreaife.inhebi`；自动签名；默认团队 **ALZ45VUZFN**，来自本机 Apple Development 公钥证书的 OU 字段，且与本机 Developer ID 团队一致。本机另有一个开发团队；若要使用其他团队，在 Shelf target → Signing & Capabilities 中选择。
+- Xcode → Settings → Apple Accounts 已登录开发者账号，签名优先使用该账号（团队 ALZ45VUZFN）。运行脚本前先执行 `unset SHELF_AUTH_KEY_PATH SHELF_AUTH_KEY_ID SHELF_AUTH_KEY_ISSUER`，保留 `-allowProvisioningUpdates`。
 - Apple TV 和 Mac 接入同一网络。在 Apple TV 的“设置 → 遥控器与设备 → 遥控 App 与设备”进入配对界面。
 - Xcode 27 使用 **Xcode → Open Developer Tool → Device Hub**（或运行目标菜单里的 Manage Devices），添加并配对 Apple TV，输入电视显示的配对码。按 Xcode/设备提示完成开发准备。
 - 将运行目标选为该 Apple TV，点击 Run。Xcode 注册设备并生成开发 provisioning profile；以后签名/profile 过期时重新构建安装。
@@ -37,7 +37,7 @@ Generic 编译不需要 tvOS 模拟器运行时。未下载模拟器运行时；
 
 ## 使用
 
-顶部 Tab 为 iwara、Hanime1、漫画、设置。横版四列、竖版五列，只有封面参与系统 `.card` 焦点放大，文字在外；封面与标题间留 32pt，保留原生放大幅度。封面占满整列并与标题左缘对齐，横版为 16:9、Hanime1 竖版为 2:3、漫画为 3:4；不再按视口高度压缩封面，不要求首屏完整两行，允许竖版第二行仅部分露出；靠近底部自动加载下一页。列数、间距、字体和解码上限集中在 `Shelf/Layout.swift`。
+顶部 Tab 为 iwara、Hanime1、漫画、我的、设置。横版四列、竖版五列，只有封面参与系统 `.card` 焦点放大，文字在外；封面与标题间留 32pt，保留原生放大幅度。封面占满整列并与标题左缘对齐，横版为 16:9、Hanime1 竖版为 2:3、漫画为 3:4；不再按视口高度压缩封面，不要求首屏完整两行，允许竖版第二行仅部分露出；靠近底部自动加载下一页。列数、间距、字体和解码上限集中在 `Shelf/Layout.swift`。
 
 - iwara：横条切排序，右侧分级按钮循环全部/一般/成人；Hanime1：横条切分类，右侧面板切排序。芯片聚焦停留 0.4 秒后切换内容，快速掠过不会请求。右侧按钮仍按下生效。iwara 默认趋势排第一；芯片选择仅在本次运行保留，排序面板/分级继续跨启动记忆。
 - 漫画：最新、所有父类及子类按站点顺序平铺在横条；子类显示“大类·子类”，右侧只保留搜索。
@@ -47,8 +47,42 @@ Generic 编译不需要 tvOS 模拟器运行时。未下载模拟器运行时；
 - 登录：仅 user token 存 Keychain，access token 留内存并按 JWT exp 刷新。换 token 返回 401/403 时清理过期会话，退回游客并在设置提示。密码提交后或离开设置清空。
 - 阅读：按屏幕适配完整页面；默认左键下一页，设置可改方向。双页以两张图片的实际宽高比适配同一高度，内侧边缘无缝相接、整体居中、不裁切。从缩略图跳到或从详情续读第 N 页时，配对始终为 N/N+1，不按奇偶重新对齐；默认 N 在右，改为从左往右时 N 在左。双页每次前进或后退两页，后退不早于第 1 页，末尾可只显示一页；记忆配对的起始页，预加载从当前可见页之后开始。
 - 阅读面板：上键呼出并聚焦当前页缩略图（双页为起始页 N），缩略图条再按上收起；下键呼出并聚焦底部“继续阅读”，按钮行再按下收起，按上可以移到缩略图条。Select/播放暂停呼出时也聚焦当前页缩略图。先滚动到当前页，等该缩略图实际可见后再请求焦点，避免 LazyHStack 尚未创建目标。Menu 先收面板再退出，收起后左右翻页正常。
-- 方向呼出后最初 1 秒忽略同方向的边缘关闭；随后连发事件使关闭等待至少 350ms 的同向静默期，且不会缩短初始窗口，用于避免一次滑动呼出又立即收起。快速再次点按也受该窗口约束。页码以 22pt 小字显示在右下角；面板打开时预览页码保持右对齐、位于按钮行上方。双页模式和页码记忆在本机；详情显示“从第 N 页继续”。没有离线图片缓存。
-- 详情返回保留内容、滚动位置和原卡片焦点。网格里 Menu 先回顶部并聚焦选中芯片，再按 Menu 回系统 Tab；从系统 Tab 按下一次进入选中芯片。Menu 和切 Tab 不重新请求已有列表。UI 测试使用独立偏好存储，不覆盖正常使用偏好。
+- 方向呼出后最初 1 秒忽略同方向的边缘关闭；随后连发事件使关闭等待至少 350ms 的同向静默期，且不会缩短初始窗口，用于避免一次滑动呼出又立即收起。快速再次点按也受该窗口约束。页码以 22pt 小字显示在右下角；面板打开时预览页码保持右对齐、位于按钮行上方。双页模式记忆在本机，页码存进可同步的观看历史；详情显示“从第 N 页继续”。没有离线图片缓存。
+- 详情返回保留内容、滚动位置和原卡片焦点。网格里 Menu 先回顶部并聚焦选中芯片，再按 Menu 回系统 Tab；从系统 Tab 按下一次进入选中芯片。Menu 和切 Tab 不重新请求已有列表。常规 UI 测试使用独立偏好存储和内存 ModelContainer，不覆盖正常偏好、历史或收藏，也不写入 iCloud。
+
+## iCloud 历史与收藏
+
+- 模型和读写接口在 `Packages/ShelfCore/Sources/ShelfCore/LibraryStore.swift`，不依赖 tvOS UI。`SavedMediaItem` 保存来源、站点 ID、标题、封面链接、卡片方向、最近观看时间及零基阅读页码；`FavoriteFolder` 保存稳定 ID、名称和创建时间，通过可选双向多对多关系关联条目。所有持久化属性有默认值或可选，没有唯一约束。默认收藏夹 ID 为 `default`，首次收藏时创建；导入完成后合并跨设备同时创建的重复条目/默认夹，按创建时间、再按不可变记录 ID 选择保留对象，最新元数据单独合并。
+- 视频开始播放、打开漫画时写入历史，同一来源与 ID 只更新时间；翻页只更新内存对象，由 SwiftData 自动保存，退出阅读器时显式保存一次。历史/收藏携带列表的封面方向、封面链接与裁切规则；详情刷新仍更新标题，已存竖版不会被详情的横版播放器海报覆盖。清空历史同时清除续读页码，但保留收藏；没有历史且不属于任何收藏夹的条目随移除操作删除。
+- 视频/漫画详情的星标短按切换默认收藏，长按打开带选中状态的收藏夹列表，可逐个切换或新建收藏夹；实心只表示属于默认收藏夹，短按一定切换星标状态；仅在其他收藏夹时为空心，按钮文字显示总收藏夹数量（如“收藏 · 2 个收藏夹”）。
+- “我的”复用 0.4 秒聚焦切换的筛选条，历史在前、收藏夹在后。按来源分区，卡片保持原有列数/比例；Select 进入详情、播放/暂停直接打开。卡片长按菜单可从当前列表移除。右侧固定按钮清空历史或管理当前收藏夹（重命名/删除）；芯片标题、顺序和删除同步更新，删除当前收藏夹后回到“历史”。详情使用独立导航值，取消收藏移除原卡片时仍停留在详情。漫画快速打开直接复用当前列表元数据，只请求页面，不为写历史额外请求详情。
+- 设置显示 iCloud 账号状态；未登录时保留本机数据。iCloud 容器为 `iCloud.com.dreaife.inhebi`，仅使用私有数据库。开发签名使用 **CloudKit Development** 环境。
+- `script/generate-project.py` 同时生成 `Shelf/Shelf.entitlements`，保留 iCloud、推送和 `UIBackgroundModes = remote-notification` 配置；新 App ID 是 `com.dreaife.inhebi`，UI 测试是 `com.dreaife.inhebi.uitests`。内部工程、scheme、目录仍为 Shelf。
+- DEBUG 的 `Library/Caches/inHebi/FocusTrace.txt` 包含 `cloudkit kind=import/export/setup completed=... success=... error=domain:code`，不记录云端条目内容。常规 UI 测试使用内存库，不能证明同步。专用 `testCloudKitExport` 仅在 `TEST_RUNNER_INHEBI_CLOUD_TEST=1` 时运行，通过 DEBUG 的 `--ui-cloud-library` 让这条用例使用真实 CloudKit 库；它检查 iCloud 状态、选择尚未加入默认收藏的条目、收藏后取消，并等待新增和清理的导出。若默认收藏夹为测试新建，也会删除空夹。取日志核对 `kind=export completed=true success=true`。
+- 新应用全新安装，不迁移旧应用的数据或 Keychain。旧 `com.dreaife.shelf` 保留在电视上；新 iwara 登录由用户输入并确认。
+
+### Xcode 账号自动签名
+
+2026-10-14：清除三个 API 密钥环境变量后，Xcode 已登录账号自动 provisioning 成功。已核对签名产物和 profile 均包含 `com.dreaife.inhebi`、`iCloud.com.dreaife.inhebi`、CloudKit 和开发推送权限；无需手动创建或关联容器。旧 API 密钥方式同日返回 `Authentication failed`，暂不使用。
+
+```sh
+unset SHELF_AUTH_KEY_PATH SHELF_AUTH_KEY_ID SHELF_AUTH_KEY_ISSUER
+./script/test-device.sh "$SHELF_DEVICE_ID"
+# 测试通过并提交之后：
+./script/install-device.sh "$SHELF_DEVICE_ID"
+# 专用真实 CloudKit 验收（保持当前安装版本号）：
+TEST_RUNNER_INHEBI_CLOUD_TEST=1 ./script/test-device.sh "$SHELF_DEVICE_ID" \
+  -only-testing:ShelfUITests/ShelfUITests/testCloudKitExport \
+  "CURRENT_PROJECT_VERSION=$(git rev-list --count HEAD)" "SHELF_COMMIT=$(git rev-parse --short HEAD)"
+```
+
+依据：[Apple SwiftData 同步要求](https://developer.apple.com/documentation/swiftdata/syncing-model-data-across-a-persons-devices)、[启用 App 能力](https://developer.apple.com/help/account/identifiers/enable-app-capabilities)。
+
+### 2026-10-14 真机验收
+
+常规 29 项全部取得通过结果：首轮 23 通过 / 6 失败，修正原生 Select 长按、稀疏列表焦点分区、管理窗口关闭后的焦点恢复及测试定位/输入时序后，定向重跑补齐。主屏 inHebi 图标可见且可聚焦，旧 Shelf 保留。正常启动真实 SwiftData/CloudKit 容器成功。
+
+真实 CloudKit 专用用例 1/1 通过，设置显示“已登录 iCloud”；新增收藏后取消，测试新建的空默认夹也已删除。清理后的日志：`2026-10-14T10:53:00.220 kind=code cloudkit kind=export completed=true success=true error=none`。证据在 `artifacts/inhebi-cloudkit-focus.txt`，这里只确认 Apple TV 的真实导入/导出，不代替未来 Mac/iOS 双端同步验收。
 
 ### 原生播放器按键与边界
 
@@ -128,7 +162,7 @@ Debug 焦点记录增加阅读面板的呼出方向、当前页、可见缩略�
 ./script/test-device.sh "$SHELF_DEVICE_ID" -only-testing:ShelfUITests/ShelfUITests/testReaderJumpResumeAndSpread
 ```
 
-签名可使用 Xcode Apple Accounts，或设置 `SHELF_AUTH_KEY_PATH`、`SHELF_AUTH_KEY_ID`、`SHELF_AUTH_KEY_ISSUER` 三个环境变量使用 App Store Connect API 密钥。密钥只按本机路径引用，不复制内容；不要把真实标识写入仓库。脚本启用自动 provisioning/设备注册，真机 DerivedData 在 `artifacts/DerivedDataDevice`。结果保存到 `artifacts/device-ui-*.xcresult`；截图导出到 `artifacts/screenshots/`，含英文页面名及 `index.json`。`artifacts/` 已忽略。也可单独运行 `python3 script/export-screenshots.py RESULT.xcresult`。
+签名优先使用已登录的 Xcode Apple Accounts。App Store Connect API 密钥在 2026-10-14 实测认证失败，暂不使用；运行脚本前清除 `SHELF_AUTH_KEY_PATH`、`SHELF_AUTH_KEY_ID`、`SHELF_AUTH_KEY_ISSUER`。脚本仅在显式设置密钥路径时传 API 密钥参数，否则使用 Xcode 账号。密钥只按本机路径引用，不复制内容；不要把真实标识写入仓库。脚本启用自动 provisioning/设备注册，真机 DerivedData 在 `artifacts/DerivedDataDevice`。结果保存到 `artifacts/device-ui-*.xcresult`；截图导出到 `artifacts/screenshots/`，含英文页面名及 `index.json`。`artifacts/` 已忽略。也可单独运行 `python3 script/export-screenshots.py RESULT.xcresult`。
 
 Debug App 同时带 `--ui-testing --mute-playback` 启动参数时静音，显示供测试读取的实际 AVPlayer 状态和播放时间；正常启动不静音、不显示测试状态。Release 不启用测试参数。
 
@@ -161,7 +195,7 @@ Debug App 同时带 `--ui-testing --mute-playback` 启动参数时静音，显�
 
 ## DEBUG 焦点记录
 
-Debug 构建无论正常启动还是 UI 测试，都会把最近 500 行焦点记录保存到应用容器 `Library/Caches/Shelf/FocusTrace.txt`。记录 UTC 时间、原生方向、前后视图及层级、逻辑元素标识、SwiftUI FocusState、当前分类、条目数和加载状态；代码主动请求焦点会单独标记原因。文件异步写入，不联网、不改变界面、不记录密码或 token；Release 不记录。
+Debug 构建无论正常启动还是 UI 测试，都会把最近 500 行焦点记录保存到应用容器 `Library/Caches/inHebi/FocusTrace.txt`。记录 UTC 时间、原生方向、前后视图及层级、逻辑元素标识、SwiftUI FocusState、当前分类、条目数和加载状态；代码主动请求焦点会单独标记原因。文件异步写入，不联网、不改变界面、不记录密码或 token；Release 不记录。
 
 遇到问题后停止继续操作，尽快在已配对 Mac 上取回：
 
@@ -169,8 +203,8 @@ Debug 构建无论正常启动还是 UI 测试，都会把最近 500 行焦点�
 ./script/fetch-focus-trace.sh "$SHELF_DEVICE_ID"
 # 等价命令：
 xcrun devicectl device copy from --device "$SHELF_DEVICE_ID" \
-  --domain-type appDataContainer --domain-identifier com.dreaife.shelf \
-  --source Library/Caches/Shelf/FocusTrace.txt \
+  --domain-type appDataContainer --domain-identifier com.dreaife.inhebi \
+  --source Library/Caches/inHebi/FocusTrace.txt \
   --destination artifacts/FocusTrace.txt
 ```
 
@@ -182,7 +216,7 @@ xcrun devicectl device copy from --device "$SHELF_DEVICE_ID" \
 
 `Shelf/Assets.xcassets/ShelfBrand.brandassets` 包含主屏 Small（400×240 / 800×480）、App Store Large（1280×768）两个三层 image stack，以及普通/宽版 Top Shelf 的 1x/2x。图层从后到前为 Back（背景）、Middle（架板）、Front（书与播放屏）；imagestack JSON 按 Front、Middle、Back 登记。13 张 PNG 原样保留尺寸、透明边缘和不透明背景，均已纳入 git，构建不依赖 artifacts。
 
-App Icons Source 为 `ShelfBrand`，在 `script/generate-project.py` 中维护，重新生成工程不会丢失资源或配置。`testHomeScreenIcon` 在退出应用后检查系统主屏上的 Shelf 图标存在、可见且已聚焦，并保留截图。真机主屏已显示新图标和静态 Top Shelf；真实遥控器的三层视差手感需人工确认。
+App Icons Source 为 `ShelfBrand`，在 `script/generate-project.py` 中维护，重新生成工程不会丢失资源或配置。`testHomeScreenIcon` 在退出应用后检查系统主屏上的 inHebi 图标存在、可见且已聚焦，并保留截图。真机主屏已显示新图标和静态 Top Shelf；真实遥控器的三层视差手感需人工确认。
 
 ## 筛选条符号
 

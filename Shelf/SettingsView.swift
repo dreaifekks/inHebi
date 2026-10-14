@@ -10,7 +10,8 @@ struct SettingsView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 30) {
-                Text("Shelf 设置").font(.largeTitle.bold()).accessibilityIdentifier("settings.title")
+                Text("inHebi 设置").font(.largeTitle.bold()).accessibilityIdentifier("settings.title")
+                Label(model.cloudAccountStatus, systemImage: "icloud").accessibilityIdentifier("settings.icloud")
                 Text("iwara 账号").font(.title2)
                 if model.isLoggedIn {
                     Label("已登录 · 凭证保存在本机钥匙串", systemImage: "checkmark.circle.fill").foregroundStyle(.green)
@@ -28,7 +29,7 @@ struct SettingsView: View {
                 Button(rightToLeft ? "翻页方向：右开（左键下一页）" : "翻页方向：左开（右键下一页）") { rightToLeft.toggle() }
                     .accessibilityIdentifier("settings.reading-direction")
                 Text("按选择键或播放/暂停键打开阅读选项，可用缩略图跳页、切换单页或双页。阅读方向和双页模式会记住。").foregroundStyle(.secondary)
-                Text("Shelf 1.0 · 仅本机使用").font(.caption).foregroundStyle(.secondary)
+                Text("inHebi 1.0").font(.caption).foregroundStyle(.secondary)
             }.frame(maxWidth: 1000, alignment: .leading).padding(70).frame(maxWidth: .infinity)
         }
         .onDisappear { password = "" }

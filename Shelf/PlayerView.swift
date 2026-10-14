@@ -6,8 +6,11 @@ struct VideoPlayback: Identifiable {
   let id = UUID()
   let video: Video
   let stream: VideoStream
+  let sourceName: String
+  var cardMetadata: LibraryMetadata?
 }
 struct PlayerScreen: View {
+  @Environment(AppModel.self) private var model
   let playback: VideoPlayback
   @State private var error: String?
   @State private var playbackStatus = "waiting:0"
@@ -28,6 +31,9 @@ struct PlayerScreen: View {
           .black.opacity(0.75)
         ).padding(40)
       }
+    }
+    .onAppear {
+      model.libraryAction { try $0.recordVisit(LibraryMetadata(video: playback.video, source: playback.sourceName, presentation: playback.cardMetadata)) }
     }
     .alert("播放失败", isPresented: Binding(get: { error != nil }, set: { if !$0 { error = nil } })) {
       Button("返回详情") { dismiss() }

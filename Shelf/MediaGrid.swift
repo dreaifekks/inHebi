@@ -13,6 +13,14 @@ struct MediaEntry: Identifiable {
   let cover: URL?
   let badge: String
   let fill: Bool
+  init(_ item: SavedMediaItem) {
+    id = item.key
+    title = item.title
+    subtitle = item.subtitle
+    cover = item.cover.flatMap(URL.init(string:))
+    badge = ""
+    fill = item.fillCover
+  }
   init(_ video: Video) {
     id = video.id
     title = video.title
@@ -43,6 +51,8 @@ struct MediaGrid<Destination: View>: View {
   var preparing: String?
   var quickError: String?
   var failedID: String?
+  var remove: ((String) -> Void)?
+  var openDetail: ((String) -> Void)?
   let destination: (String) -> Destination
   let quick: (String) -> Void
   @State private var loadedCovers = Set<String>()
@@ -59,34 +69,19 @@ struct MediaGrid<Destination: View>: View {
     ) {
       ForEach(Array(entries.enumerated()), id: \.element.id) { index, entry in
         VStack(alignment: .leading, spacing: ShelfLayout.coverTitleSpacing) {
-          NavigationLink {
-            destination(entry.id)
-          } label: {
-            ZStack(alignment: .bottomTrailing) {
-              RemoteImage(
-                url: entry.cover, referer: referer, maxPixelSize: ShelfLayout.cardPixels,
-                fill: entry.fill,
-                onLoadStateChange: { loaded in
-                  if loaded { loadedCovers.insert(entry.id) } else { loadedCovers.remove(entry.id) }
-                }
-              )
-              .frame(width: cardWidth, height: imageHeight).clipShape(
-                RoundedRectangle(cornerRadius: ShelfLayout.cardRadius))
-              if preparing == entry.id {
-                Text(comic ? "正在打开…" : "准备播放…").font(ShelfLayout.captionFont).padding(10)
-                  .background(.black.opacity(0.75))
-              } else if !entry.badge.isEmpty {
-                Text(entry.badge).font(.system(size: 23).monospacedDigit()).padding(.horizontal, 10)
-                  .padding(.vertical, 6).background(.black.opacity(0.65), in: Capsule()).padding(10)
+          cardLink(entry)
+            .buttonStyle(.card)
+            .accessibilityLabel(entry.title)
+            .accessibilityValue(loadedCovers.contains(entry.id) ? "封面已加载" : "封面加载中")
+            .accessibilityIdentifier("\(comic ? "album" : "video").card.\(entry.id)")
+            .focused(focus, equals: .card(entry.id))
+            .onPlayPauseCommand { quick(entry.id) }
+            .contextMenu {
+              if let remove {
+                Button("从这里移除", role: .destructive) { remove(entry.id) }
+                  .accessibilityIdentifier("library.remove")
               }
             }
-          }
-          .buttonStyle(.card)
-          .accessibilityLabel(entry.title)
-          .accessibilityValue(loadedCovers.contains(entry.id) ? "封面已加载" : "封面加载中")
-          .accessibilityIdentifier("\(comic ? "album" : "video").card.\(entry.id)")
-          .focused(focus, equals: .card(entry.id))
-          .onPlayPauseCommand { quick(entry.id) }
 
           VStack(alignment: .leading, spacing: 8) {
             Text(entry.title).font(ShelfLayout.titleFont).lineLimit(2).frame(
@@ -105,6 +100,42 @@ struct MediaGrid<Destination: View>: View {
       }
     }.scrollTargetLayout()
   }
+  @ViewBuilder private func cardLink(_ entry: MediaEntry) -> some View {
+    if let openDetail {
+      Button {
+        openDetail(entry.id)
+      } label: {
+        cardLabel(entry)
+      }
+    } else {
+      NavigationLink {
+        destination(entry.id)
+      } label: {
+        cardLabel(entry)
+      }
+    }
+  }
+  private func cardLabel(_ entry: MediaEntry) -> some View {
+    ZStack(alignment: .bottomTrailing) {
+      RemoteImage(
+        url: entry.cover, referer: referer, maxPixelSize: ShelfLayout.cardPixels,
+        fill: entry.fill,
+        onLoadStateChange: { loaded in
+          if loaded { loadedCovers.insert(entry.id) } else { loadedCovers.remove(entry.id) }
+        }
+      )
+      .frame(width: cardWidth, height: imageHeight).clipShape(
+        RoundedRectangle(cornerRadius: ShelfLayout.cardRadius))
+      if preparing == entry.id {
+        Text(comic ? "正在打开…" : "准备播放…").font(ShelfLayout.captionFont).padding(10)
+          .background(.black.opacity(0.75))
+      } else if !entry.badge.isEmpty {
+        Text(entry.badge).font(.system(size: 23).monospacedDigit()).padding(.horizontal, 10)
+          .padding(.vertical, 6).background(.black.opacity(0.65), in: Capsule()).padding(10)
+      }
+    }
+  }
+
 }
 struct FilterBar: View {
   let options: [SourceOption]
@@ -166,14 +197,24 @@ struct FilterBar: View {
           do { try await Task.sleep(for: .milliseconds(100)) } catch { return }
         }
       }
-      .task(id: focus) {
-        guard case .chip(let id) = focus, id != selection else { return }
+      .onChange(of: options.map(\.id)) { _, ids in
+        if !ids.contains(selection), let first = ids.first { selection = first }
+        if case .chip(let id) = focus, !ids.contains(id) { focus = .chip(selection) }
+      }
+      .task(id: ChipDwell(focus: focus, ids: options.map(\.id))) {
+        guard case .chip(let id) = focus, id != selection, options.contains(where: { $0.id == id })
+        else { return }
         do { try await Task.sleep(for: .milliseconds(400)) } catch { return }
         FocusTrace.mark("select-chip id=\(id)")
         selection = id
       }
   }
 }
+private struct ChipDwell: Equatable {
+  let focus: BrowseFocus?
+  let ids: [String]
+}
+
 struct OptionSheet: View {
   let title: String
   let options: [SourceOption]

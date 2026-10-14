@@ -10,18 +10,6 @@ struct ReadingSession: Identifiable, Hashable {
 }
 @MainActor enum ReaderHistory {
   static var hintsShown = 0
-  static func lastPage(_ album: String) -> Int {
-    TestMode.preferences.integer(forKey: "reader.lastPage.\(album)")
-  }
-  static func save(_ page: Int, album: String) {
-    let defaults = TestMode.preferences
-    var recent = defaults.stringArray(forKey: "reader.recent") ?? []
-    recent.removeAll { $0 == album }
-    recent.insert(album, at: 0)
-    for old in recent.dropFirst(50) { defaults.removeObject(forKey: "reader.lastPage.\(old)") }
-    defaults.set(Array(recent.prefix(50)), forKey: "reader.recent")
-    defaults.set(page, forKey: "reader.lastPage.\(album)")
-  }
 }
 struct ReaderView: View {
   let session: ReadingSession
@@ -168,7 +156,7 @@ struct ReaderView: View {
       .onDisappear {
         appModel.readerActive = false
         focus = nil
-        ReaderHistory.save(page, album: session.albumID)
+        appModel.saveReadingPage(page, album: session.albumID)
       }
       .onChange(of: controls) { _, value in
         FocusTrace.mark(
@@ -182,6 +170,7 @@ struct ReaderView: View {
         FocusTrace.mark(
           "reader page=\(page + 1) focus=\(String(describing: old))->\(String(describing: new))")
       }
+      .onChange(of: page) { _, value in appModel.updateReadingPage(value, album: session.albumID) }
       .onExitCommand { if controls { controls = false } else { close() } }
       .onPlayPauseCommand { if controls { controls = false } else { showControls() } }
       .task(id: "\(page)|\(spread)") {
@@ -237,7 +226,6 @@ struct ReaderView: View {
     controls = false
   }
   private func close() {
-    ReaderHistory.save(page, album: session.albumID)
     focus = nil
     dismiss()
   }

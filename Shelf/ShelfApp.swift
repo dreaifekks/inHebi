@@ -1,7 +1,16 @@
 import ShelfCore
 import SwiftUI
+import SwiftData
+import CloudKit
 
 @MainActor @Observable final class AppModel {
+  let library = LibraryStore(container: try! LibraryStore.makeContainer(inMemory: TestMode.inMemoryLibrary))
+  var libraryError: String?
+  var cloudAccountStatus = "正在检查 iCloud…"
+  #if DEBUG
+  var cloudExportCount = 0
+  #endif
+  private var cloudMonitor: CloudSyncMonitor?
   let iwara = IwaraSource()
   let wnacg = WnacgSource()
   let hanime = Hanime1Source()
@@ -12,6 +21,12 @@ import SwiftUI
   var startupError: String?
   private let keychain = KeychainStore()
   func restore() async {
+    if !TestMode.inMemoryLibrary {
+      cloudMonitor = CloudSyncMonitor(model: self)
+      UIApplication.shared.registerForRemoteNotifications()
+    }
+    libraryAction { try $0.reconcileDuplicates() }
+    Task { await refreshCloudAccount() }
     await iwara.setExpirationHandler { [weak self] in await self?.sessionExpired() }
     do {
       let token = try keychain.read()
@@ -47,7 +62,7 @@ import SwiftUI
   @State private var model = AppModel()
   init() {
     if TestMode.enabled && ProcessInfo.processInfo.arguments.contains("--ui-reset-preferences") {
-      TestMode.preferences.removePersistentDomain(forName: "com.dreaife.shelf.uitests.preferences")
+      TestMode.preferences.removePersistentDomain(forName: "com.dreaife.inhebi.uitests.preferences")
     }
   }
   var body: some Scene {
@@ -72,7 +87,22 @@ import SwiftUI
           ).font(.system(size: 12)).accessibilityIdentifier("playback.activity")
         }
       }
+      .overlay(alignment: .bottomTrailing) {
+        #if DEBUG
+        if TestMode.cloudLibrary {
+          Text("exports=\(model.cloudExportCount)").font(.system(size: 12))
+            .accessibilityIdentifier("cloudkit.exports")
+        }
+        #endif
+      }
       .environment(model)
+      .modelContainer(model.library.container)
+      .alert("保存失败", isPresented: Binding(get: { model.libraryError != nil }, set: { if !$0 { model.libraryError = nil } })) {
+        Button("好") { model.libraryError = nil }
+      } message: { Text(model.libraryError ?? "") }
+      .onReceive(NotificationCenter.default.publisher(for: .CKAccountChanged)) { _ in
+        Task { await model.refreshCloudAccount() }
+      }
       .tint(.cyan)
       .preferredColorScheme(.dark)
       .task { if !model.ready { await model.restore() } }
@@ -87,11 +117,13 @@ import SwiftUI
           .tabItem { Label("Hanime1", systemImage: "film") }
         NavigationStack { AlbumBrowser(source: model.wnacg) }
           .tabItem { Label("漫画", systemImage: "books.vertical") }
+        NavigationStack { LibraryView() }
+          .tabItem { Label("我的", systemImage: "star.square") }
         NavigationStack { SettingsView(model: model) }
           .tabItem { Label("设置", systemImage: "gearshape") }
       }
     } else {
-      ProgressView("正在打开 Shelf…")
+      ProgressView("正在打开 inHebi…")
     }
   }
 }

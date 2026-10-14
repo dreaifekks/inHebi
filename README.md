@@ -1,6 +1,6 @@
 # Shelf
 
-自用 tvOS 原生应用：iwara / Hanime1 视频、wnacg 漫画。SwiftUI + AVKit + URLSession；无 WebView、后端、下载、播放历史或收藏同步；本地保存筛选偏好与最近 50 本的阅读页码。最低 tvOS 18；ShelfCore 支持 macOS 15 / tvOS 18。唯一外部依赖是 SwiftSoup（锁定文件当前解析为 2.14.2）。
+自用 tvOS 原生应用：iwara / Hanime1 视频、wnacg 漫画。当前状态、用户做过的决定和工作约定见 [docs/HANDOFF.md](docs/HANDOFF.md)。SwiftUI + AVKit + URLSession；无 WebView、后端、下载、播放历史或收藏同步；本地保存筛选偏好与最近 50 本的阅读页码。最低 tvOS 18；ShelfCore 支持 macOS 15 / tvOS 18。唯一外部依赖是 SwiftSoup（锁定文件当前解析为 2.14.2）。
 
 ## 打开与验证
 
@@ -95,7 +95,7 @@ Generic 编译不需要 tvOS 模拟器运行时。未下载模拟器运行时；
 
 核心离线与联网测试包括真实 fixtures、分页重入/取消、JWT 到期和无效 user token 回游客、三站列表/详情/媒体请求。真机覆盖布局、焦点、搜索实际提交、两源静音播放与停止、播放结束、阅读跳页/续读/方向。已有 Keychain 会话恢复正常；新输入真实账号的登录流程及有声输出仍由用户确认。
 
-未做播放续播、搜索历史、正式 searchScopes、关注、排行榜、文件大小/额外评论详情等未选 P2。没有定制 App Icon/Top Shelf 素材。
+未做播放续播、搜索历史、正式 searchScopes、关注、排行榜、文件大小/额外评论详情等未选 P2。应用图标和 Top Shelf 见文末“tvOS 品牌资源”。
 
 ## Apple TV UI 测试
 
@@ -119,7 +119,7 @@ Debug App 同时带 `--ui-testing --mute-playback` 启动参数时静音，显�
 
 安装脚本在 Info.plist 写入 `ShelfCommit`，build number 为 git commit 数量，便于核对版本；安装后不自动播放。
 
-2026-10-14 当前验收：核心离线及联网测试通过（联网 28 项），真机完整 15 项通过，generic tvOS 编译通过。39 张命名截图已逐张检查，筛选条末尾、返回和分类搜索截图在最后导出后再次复核。结果见 `progress.md`，截图在 `artifacts/screenshots/`。
+2026-10-14 最终验收：核心离线及联网测试通过（联网 28 项），真机完整 19 项通过，加分类图标后筛选条相关 9 项重跑通过，generic tvOS 编译通过。39 张命名截图已逐张检查，筛选条末尾、返回和分类搜索截图在最后导出后再次复核。结果见 `progress.md`，截图在 `artifacts/screenshots/`。
 
 已验证的原生行为差异：筛选条采用独立固定头部，避开 safeAreaInset 在 tvOS 的焦点滚动影响；芯片保持固定几何尺寸与同一种原生按钮样式并用青色填充表示选中；搜索使用子页 TextField，因 searchable 的原生键盘未触发期望的提交；阅读器使用隐藏 Tab 的导航页，避开全屏模态返回焦点问题。条高 80pt 容纳 60pt 的原生芯片按钮与焦点效果，首屏仍完整两行。
 

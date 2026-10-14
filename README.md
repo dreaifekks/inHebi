@@ -25,7 +25,7 @@
 打开 `inHebi.xcodeproj`，选择 **inHebi** scheme。工程已提交，无需 XcodeGen/Tuist。添加 App Swift 文件后可运行 `python3 script/generate-project.py` 重新生成工程；生成器会覆盖 pbxproj，团队配置也应同步修改生成器。
 
 ```sh
-cd /Users/gakeiakira/code/tv-shelf
+cd /Users/gakeiakira/code/inHebi
 swift test --package-path Packages/InHebiCore
 INHEBI_LIVE_TESTS=1 swift test --package-path Packages/InHebiCore
 ./script/verify.sh

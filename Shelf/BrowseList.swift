@@ -55,7 +55,7 @@ struct BrowseList<Destination: View, Search: View>: View {
             filterTitle: filterTitle, filterAction: filterAction,
             search: AnyView(
               NavigationLink(destination: search) {
-                Image(systemName: "magnifyingglass").font(.system(size: 29))
+                Image(systemName: FilterSymbols.search).font(.system(size: 29))
               }.accessibilityIdentifier("search.open")))
         }
         ScrollView {

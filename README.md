@@ -121,7 +121,7 @@ Debug App 同时带 `--ui-testing --mute-playback` 启动参数时静音，显�
 
 2026-10-14 当前验收：核心离线及联网测试通过（联网 28 项），真机完整 15 项通过，generic tvOS 编译通过。39 张命名截图已逐张检查，筛选条末尾、返回和分类搜索截图在最后导出后再次复核。结果见 `progress.md`，截图在 `artifacts/screenshots/`。
 
-已验证的原生行为差异：筛选条采用独立固定头部，避开 safeAreaInset 在 tvOS 的焦点滚动影响；芯片保持固定几何尺寸与同一种原生按钮样式并用颜色/勾号选中；搜索使用子页 TextField，因 searchable 的原生键盘未触发期望的提交；阅读器使用隐藏 Tab 的导航页，避开全屏模态返回焦点问题。条高 80pt 容纳 60pt 的原生芯片按钮与焦点效果，首屏仍完整两行。
+已验证的原生行为差异：筛选条采用独立固定头部，避开 safeAreaInset 在 tvOS 的焦点滚动影响；芯片保持固定几何尺寸与同一种原生按钮样式并用青色填充表示选中；搜索使用子页 TextField，因 searchable 的原生键盘未触发期望的提交；阅读器使用隐藏 Tab 的导航页，避开全屏模态返回焦点问题。条高 80pt 容纳 60pt 的原生芯片按钮与焦点效果，首屏仍完整两行。
 
 
 ## 筛选条交互修订
@@ -158,3 +158,9 @@ xcrun devicectl device copy from --device "$SHELF_DEVICE_ID" \
 `Shelf/Assets.xcassets/ShelfBrand.brandassets` 包含主屏 Small（400×240 / 800×480）、App Store Large（1280×768）两个三层 image stack，以及普通/宽版 Top Shelf 的 1x/2x。图层从后到前为 Back（背景）、Middle（架板）、Front（书与播放屏）；imagestack JSON 按 Front、Middle、Back 登记。13 张 PNG 原样保留尺寸、透明边缘和不透明背景，均已纳入 git，构建不依赖 artifacts。
 
 App Icons Source 为 `ShelfBrand`，在 `script/generate-project.py` 中维护，重新生成工程不会丢失资源或配置。`testHomeScreenIcon` 在退出应用后检查系统主屏上的 Shelf 图标存在、可见且已聚焦，并保留截图。真机主屏已显示新图标和静态 Top Shelf；真实遥控器的三层视差手感需人工确认。
+
+## 筛选条符号
+
+`Shelf/FilterSymbols.swift` 集中维护分类/排序到 SF Symbol 的映射、固定按钮符号和图标尺寸。漫画平铺标签按最后一个 `·` 后的子类名映射；未知分类使用 `tag`。当前采用全部建议符号，中日文字典图标分别为 `character.book.closed.zh` / `.ja`。已逐个核对 Apple CoreGlyphs 的 tvOS 可用性记录（全部最晚 tvOS 15 可用），并在真机测试中逐个构造 UIImage 检查。
+
+芯片取消勾号，符号始终显示；选中但未聚焦时保持青色，其他未聚焦芯片为暗色，聚焦使用原生按钮效果。图标 26pt medium、文字 29pt、图文间距 12pt，按钮 60pt / 条高 80pt 不变。右侧固定区宽 470pt，保证新增排序符号后文字不省略。选中语义使用 accessibility selected trait；真机测试比较芯片未聚焦时的选中/未选中宽度，确保状态切换不会改布局。

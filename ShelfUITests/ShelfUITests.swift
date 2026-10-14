@@ -1,4 +1,5 @@
 import XCTest
+import UIKit
 
 @MainActor final class ShelfUITests: XCTestCase {
   let app = XCUIApplication()
@@ -144,6 +145,27 @@ import XCTest
     DispatchQueue.main.asyncAfter(deadline: .now() + 0.7) { stable.fulfill() }
     wait(for: [stable], timeout: 2)
     XCTAssertEqual(app.staticTexts["playback.activity"].label, stopped)
+  }
+  func testChipSymbolsAndStableWidth() {
+    for name in FilterSymbols.allNames {
+      XCTAssertNotNil(UIImage(systemName: name), "Missing symbol: " + name)
+    }
+    XCTAssertEqual(FilterSymbols.chip("新分类"), "tag")
+    XCTAssertEqual(FilterSymbols.chip("同人誌·漢化"), "character.book.closed.zh")
+    launch()
+    ready()
+    let first = app.buttons["chip.trending"]
+    let second = app.buttons["chip.date"]
+    let firstSelectedWidth = first.frame.width
+    let secondUnselectedWidth = second.frame.width
+    press(.down, row: "strip:chip.trending", stage: "symbols-entry")
+    remote.press(.right)
+    wait("Latest must select without a checkmark") { second.isSelected }
+    press(.up, row: "top", stage: "symbols-leave")
+    XCTAssertFalse(first.isSelected)
+    XCTAssertEqual(first.frame.width, firstSelectedWidth, accuracy: 0.5)
+    XCTAssertEqual(second.frame.width, secondUnselectedWidth, accuracy: 0.5)
+    screenshot("57-chip-symbol-selection")
   }
   func testHomeScreenIcon() {
     launch()
@@ -497,6 +519,10 @@ import XCTest
         remote.press(.right)
         XCTAssertTrue(
           chips[index].hasFocus, "Right must move one: \(index), actual \(focused.identifier)")
+        if index.isMultiple(of: 3) {
+          let segment = ["one", "two", "three", "four", "five", "six"][index / 3 - 1]
+          screenshot((name == "漫画" ? "59-comic-symbols-" : "58-hanime-symbols-") + segment)
+        }
       }
       let last = chips.last!
       wait("Last chip not selected") { last.isSelected }

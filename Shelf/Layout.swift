@@ -11,7 +11,7 @@ enum ShelfLayout {
   static let chipWidth: CGFloat = 160
   static let chipSpacing: CGFloat = 24
   static let filterHeight: CGFloat = 80
-  static let filterFixedWidth: CGFloat = 420
+  static let filterFixedWidth: CGFloat = 470
   static let cardRadius: CGFloat = 16
   static let cardPixels = 900
   static let detailPixels = 1600

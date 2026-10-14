@@ -125,7 +125,13 @@ struct FilterBar: View {
       .focused(controlFocus, equals: .strip)
       HStack(spacing: 24) {
         if let filterTitle {
-          Button(filterTitle, action: filterAction).font(.system(size: 29))
+          Button(action: filterAction) {
+            HStack(spacing: FilterSymbols.spacing) {
+              Image(systemName: FilterSymbols.control(filterTitle))
+                .font(.system(size: FilterSymbols.pointSize, weight: .medium))
+              Text(filterTitle).font(.system(size: 29)).lineLimit(1)
+            }
+          }.accessibilityLabel(filterTitle)
             .frame(maxWidth: .infinity).accessibilityIdentifier("filter.primary")
             .accessibilityValue(filterTitle).accessibilityHint("按下切换")
             .focused(controlFocus, equals: .filter)

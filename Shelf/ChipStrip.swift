@@ -90,9 +90,10 @@ struct ChipStrip: UIViewRepresentable {
             config.baseBackgroundColor =
               button.isFocused ? .white : (chosen ? .cyan : UIColor(white: 0.2, alpha: 1))
             config.baseForegroundColor = button.isFocused || chosen ? .black : .white
-            config.image = UIImage(systemName: "checkmark")?.withTintColor(
-              chosen ? .black : .clear, renderingMode: .alwaysOriginal)
-            config.imagePadding = 10
+            config.image = UIImage(systemName: FilterSymbols.chip(option.title))
+            config.preferredSymbolConfigurationForImage = UIImage.SymbolConfiguration(
+              pointSize: FilterSymbols.pointSize, weight: .medium)
+            config.imagePadding = FilterSymbols.spacing
             config.contentInsets = .init(top: 8, leading: 24, bottom: 8, trailing: 24)
             button.configuration = config
             button.accessibilityTraits = chosen ? [.button, .selected] : [.button]

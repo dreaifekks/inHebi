@@ -1,9 +1,10 @@
-# tvOS icon integration
+# Filter chip symbols
 
-- [x] Read supplied icon mapping; copy layered PNGs into tracked assets.
-- [x] Register brand resources and build both simulator/device SDKs.
-- [x] Run startup/list focus regression and strict HomeBoard icon assertions.
-- [x] Inspect device Home screen icon and Top Shelf screenshot.
-- Final commit, install and version receipt: artifacts/final-verification.json.
+- [x] Confirm every proposed symbol in Apple's tvOS availability metadata.
+- [x] Centralize symbols, remove checkmarks, preserve selected semantics and dimensions.
+- [x] Verify symbol construction and equal selected/unselected layout widths on device.
+- [x] Fix observed sorting label truncation by widening fixed controls.
+- Final device suite and captures: artifacts/chip-symbol-acceptance.log / artifacts/screenshots.
+- Combined app-icon + chip-style build receipt: artifacts/final-verification.json.
 
-Physical parallax remains user verification. No push.
+Physical touch-surface feel and app-icon parallax remain manual verification. Commit, no push.

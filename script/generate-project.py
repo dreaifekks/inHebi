@@ -43,7 +43,8 @@ objects[main]=objects[main].replace('children = (','children = (%s,'%uiGroup)
 uiProduct=add('uiProduct','{isa = PBXFileReference; explicitFileType = wrapper.cfbundle; path = ShelfUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR;}')
 objects[products]=objects[products].replace('children = (','children = (%s,'%uiProduct)
 uiBuild=add('uiBuild','{isa = PBXBuildFile; fileRef = %s;}'%uiRef)
-uiSources=add('uiSources','{isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (%s,); runOnlyForDeploymentPostprocessing = 0;}'%uiBuild)
+symbolTestBuild=add('symbolTestBuild','{isa = PBXBuildFile; fileRef = %s;}'%oid('FilterSymbols.swift'))
+uiSources=add('uiSources','{isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (%s,%s,); runOnlyForDeploymentPostprocessing = 0;}'%(uiBuild,symbolTestBuild))
 uiFrameworks=add('uiFrameworks','{isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0;}')
 uiConfigs=[]
 for config in ['Debug','Release']:

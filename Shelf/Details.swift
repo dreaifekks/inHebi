@@ -52,7 +52,7 @@ struct VideoDetail: View {
                 2)
               HStack(spacing: 24) {
                 if video.embedURL != nil {
-                  Text("外站嵌入视频，无法在 Shelf 播放").font(.system(size: 29)).foregroundStyle(.secondary)
+                  Text("外站嵌入视频，无法在 inHebi 播放").font(.system(size: 29)).foregroundStyle(.secondary)
                 } else {
                   Button {
                     Task { await play() }

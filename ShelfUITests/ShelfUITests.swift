@@ -173,7 +173,7 @@ import XCTest
     app.terminate()
     let home = XCUIApplication(bundleIdentifier: "com.apple.HeadBoard")
     XCTAssertTrue(home.wait(for: .runningForeground, timeout: 15))
-    let icon = home.icons["Shelf"].firstMatch
+    let icon = home.icons["inHebi"].firstMatch
     XCTAssertTrue(icon.waitForExistence(timeout: 10))
     XCTAssertTrue(icon.isHittable)
     XCTAssertTrue(icon.hasFocus)

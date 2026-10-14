@@ -27,12 +27,12 @@ import UIKit
     }
     @MainActor private final class Recorder: NSObject {
       var heading = "none"
-      private let writer = DispatchQueue(label: "Shelf.FocusTrace")
+      private let writer = DispatchQueue(label: "inHebi.FocusTrace")
       var state = "scope=launch focus=nil selection=- count=0 loading=true"
       var lines: [String] = []
       let file: URL
       override init() {
-        file = URL.cachesDirectory.appendingPathComponent("Shelf/FocusTrace.txt")
+        file = URL.cachesDirectory.appendingPathComponent("inHebi/FocusTrace.txt")
         super.init()
         try? FileManager.default.createDirectory(
           at: file.deletingLastPathComponent(), withIntermediateDirectories: true)

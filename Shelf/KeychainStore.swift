@@ -3,7 +3,7 @@ import Security
 
 struct KeychainStore {
     private let query: [String: Any] = [kSecClass as String: kSecClassGenericPassword,
-                                       kSecAttrService as String: "com.dreaife.shelf.iwara",
+                                       kSecAttrService as String: "com.dreaife.inhebi.iwara",
                                        kSecAttrAccount as String: "userToken"]
     func read() throws -> String? {
         var request = query

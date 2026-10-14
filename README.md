@@ -1,4 +1,4 @@
-# Shelf
+# inHebi
 
 自用 tvOS 原生应用：iwara / Hanime1 视频、wnacg 漫画。当前状态、用户做过的决定和工作约定见 [docs/HANDOFF.md](docs/HANDOFF.md)。SwiftUI + AVKit + URLSession；无 WebView、后端、下载、播放历史或收藏同步；本地保存筛选偏好与最近 50 本的阅读页码。最低 tvOS 18；ShelfCore 支持 macOS 15 / tvOS 18。唯一外部依赖是 SwiftSoup（锁定文件当前解析为 2.14.2）。
 
@@ -27,7 +27,7 @@ Generic 编译不需要 tvOS 模拟器运行时。未下载模拟器运行时；
 
 ## 签名与 Apple TV 安装
 
-- Bundle ID：`com.dreaife.shelf`；自动签名；默认团队 **ALZ45VUZFN**，来自本机 Apple Development 公钥证书的 OU 字段，且与本机 Developer ID 团队一致。本机另有一个开发团队；若要使用其他团队，在 Shelf target → Signing & Capabilities 中选择。
+- Bundle ID：`com.dreaife.inhebi`；自动签名；默认团队 **ALZ45VUZFN**，来自本机 Apple Development 公钥证书的 OU 字段，且与本机 Developer ID 团队一致。本机另有一个开发团队；若要使用其他团队，在 Shelf target → Signing & Capabilities 中选择。
 - 在 Xcode → Settings → Apple Accounts 登录开发者账号，确认目标团队和自动签名可用。
 - Apple TV 和 Mac 接入同一网络。在 Apple TV 的“设置 → 遥控器与设备 → 遥控 App 与设备”进入配对界面。
 - Xcode 27 使用 **Xcode → Open Developer Tool → Device Hub**（或运行目标菜单里的 Manage Devices），添加并配对 Apple TV，输入电视显示的配对码。按 Xcode/设备提示完成开发准备。
@@ -143,7 +143,7 @@ Debug App 同时带 `--ui-testing --mute-playback` 启动参数时静音，显�
 
 ## DEBUG 焦点记录
 
-Debug 构建无论正常启动还是 UI 测试，都会把最近 500 行焦点记录保存到应用容器 `Library/Caches/Shelf/FocusTrace.txt`。记录 UTC 时间、原生方向、前后视图及层级、逻辑元素标识、SwiftUI FocusState、当前分类、条目数和加载状态；代码主动请求焦点会单独标记原因。文件异步写入，不联网、不改变界面、不记录密码或 token；Release 不记录。
+Debug 构建无论正常启动还是 UI 测试，都会把最近 500 行焦点记录保存到应用容器 `Library/Caches/inHebi/FocusTrace.txt`。记录 UTC 时间、原生方向、前后视图及层级、逻辑元素标识、SwiftUI FocusState、当前分类、条目数和加载状态；代码主动请求焦点会单独标记原因。文件异步写入，不联网、不改变界面、不记录密码或 token；Release 不记录。
 
 遇到问题后停止继续操作，尽快在已配对 Mac 上取回：
 
@@ -151,8 +151,8 @@ Debug 构建无论正常启动还是 UI 测试，都会把最近 500 行焦点�
 ./script/fetch-focus-trace.sh "$SHELF_DEVICE_ID"
 # 等价命令：
 xcrun devicectl device copy from --device "$SHELF_DEVICE_ID" \
-  --domain-type appDataContainer --domain-identifier com.dreaife.shelf \
-  --source Library/Caches/Shelf/FocusTrace.txt \
+  --domain-type appDataContainer --domain-identifier com.dreaife.inhebi \
+  --source Library/Caches/inHebi/FocusTrace.txt \
   --destination artifacts/FocusTrace.txt
 ```
 
@@ -164,7 +164,7 @@ xcrun devicectl device copy from --device "$SHELF_DEVICE_ID" \
 
 `Shelf/Assets.xcassets/ShelfBrand.brandassets` 包含主屏 Small（400×240 / 800×480）、App Store Large（1280×768）两个三层 image stack，以及普通/宽版 Top Shelf 的 1x/2x。图层从后到前为 Back（背景）、Middle（架板）、Front（书与播放屏）；imagestack JSON 按 Front、Middle、Back 登记。13 张 PNG 原样保留尺寸、透明边缘和不透明背景，均已纳入 git，构建不依赖 artifacts。
 
-App Icons Source 为 `ShelfBrand`，在 `script/generate-project.py` 中维护，重新生成工程不会丢失资源或配置。`testHomeScreenIcon` 在退出应用后检查系统主屏上的 Shelf 图标存在、可见且已聚焦，并保留截图。真机主屏已显示新图标和静态 Top Shelf；真实遥控器的三层视差手感需人工确认。
+App Icons Source 为 `ShelfBrand`，在 `script/generate-project.py` 中维护，重新生成工程不会丢失资源或配置。`testHomeScreenIcon` 在退出应用后检查系统主屏上的 inHebi 图标存在、可见且已聚焦，并保留截图。真机主屏已显示新图标和静态 Top Shelf；真实遥控器的三层视差手感需人工确认。
 
 ## 筛选条符号
 

@@ -47,7 +47,7 @@ import SwiftUI
   @State private var model = AppModel()
   init() {
     if TestMode.enabled && ProcessInfo.processInfo.arguments.contains("--ui-reset-preferences") {
-      TestMode.preferences.removePersistentDomain(forName: "com.dreaife.shelf.uitests.preferences")
+      TestMode.preferences.removePersistentDomain(forName: "com.dreaife.inhebi.uitests.preferences")
     }
   }
   var body: some Scene {
@@ -91,7 +91,7 @@ import SwiftUI
           .tabItem { Label("设置", systemImage: "gearshape") }
       }
     } else {
-      ProgressView("正在打开 Shelf…")
+      ProgressView("正在打开 inHebi…")
     }
   }
 }

@@ -39,12 +39,42 @@ import XCTest
     XCTAssertTrue(
       candidate.waitForExistence(timeout: 45), "Missing target\n" + app.debugDescription)
     let identifier = candidate.identifier
+    if identifier.hasPrefix("chip.") {
+      if !focused.exists || !focused.identifier.hasPrefix("chip.") {
+        if !app.tabBars.buttons.allElementsBoundByIndex.contains(where: { $0.hasFocus }) {
+          remote.press(.menu)
+        }
+        if app.tabBars.buttons.allElementsBoundByIndex.contains(where: { $0.hasFocus }) {
+          remote.press(.down)
+        }
+        wait("Could not enter chip strip", timeout: 3) {
+          self.focused.exists && self.focused.identifier.hasPrefix("chip.")
+        }
+      }
+      let ids = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'chip.'"))
+        .allElementsBoundByIndex.map(\.identifier)
+      let targetIndex = ids.firstIndex(of: identifier)!
+      wait("Chip focus must settle", timeout: 3) {
+        self.focused.exists && self.focused.identifier.hasPrefix("chip.")
+      }
+      var index = ids.firstIndex(of: focused.identifier)!
+      while index != targetIndex {
+        let step = index < targetIndex ? 1 : -1
+        remote.press(step > 0 ? .right : .left)
+        index += step
+        let expected = app.buttons[ids[index]]
+        if !expected.hasFocus {
+          wait("One navigation key must focus " + ids[index], timeout: 3) { expected.hasFocus }
+        }
+      }
+      return
+    }
     let target = app.descendants(matching: candidate.elementType).matching(identifier: identifier)
       .firstMatch
-    for _ in 0..<24 {
+    for _ in 0..<80 {
       if isFocused(target) { return }
-      guard focused.exists else {
-        remote.press(.down)
+      if !focused.exists {
+        wait("Native focus must settle before the next key", timeout: 3) { self.focused.exists }
         continue
       }
       let from = focused.frame
@@ -59,13 +89,23 @@ import XCTest
   }
   private func select(_ target: XCUIElement) {
     focus(target)
-    remote.press(.select)
+    if target.identifier.hasPrefix("chip.") {
+      wait("Focused chip did not select") { target.isSelected }
+      wait("Selected chip did not finish loading", timeout: 45) {
+        !self.app.staticTexts["browse.metrics"].label.contains("loading=true")
+      }
+    } else {
+      remote.press(.select)
+    }
   }
   private func tab(_ name: String) {
-    if !app.tabBars.buttons.allElementsBoundByIndex.contains(where: { $0.hasFocus }) {
+    for _ in 0..<3 {
+      if app.tabBars.buttons.allElementsBoundByIndex.contains(where: { $0.hasFocus }) { break }
       remote.press(.menu)
     }
-    select(app.tabBars.buttons[name].firstMatch)
+    focus(app.tabBars.buttons[name].firstMatch)
+    // Tab focus selects its content; do not press Select (which enters the content).
+    XCTAssertTrue(app.tabBars.buttons[name].firstMatch.hasFocus)
   }
   private func cards(_ comic: Bool = false) -> XCUIElementQuery {
     app.buttons.matching(
@@ -76,7 +116,7 @@ import XCTest
     return Int(values.first { $0.hasPrefix(key + "=") }?.split(separator: "=").last ?? "0") ?? 0
   }
   private func ready(_ comic: Bool = false) {
-    XCTAssertTrue(cards(comic).firstMatch.waitForExistence(timeout: 45))
+    XCTAssertTrue(cards(comic).firstMatch.waitForExistence(timeout: 45), app.debugDescription)
     XCTAssertTrue(
       cards(comic).matching(NSPredicate(format: "value == %@", "封面已加载")).firstMatch
         .waitForExistence(timeout: 30))
@@ -114,17 +154,13 @@ import XCTest
       NSPredicate(format: "identifier BEGINSWITH 'entry.'")
     ).allElementsBoundByIndex.filter { $0.frame.minY >= 0 && $0.frame.maxY <= 1080 }
     XCTAssertGreaterThanOrEqual(visibleRows.count, 8, "Two complete landscape rows expected")
-    focus(app.buttons["chip.date"])
+    select(app.buttons["chip.trending"])
     let requests = metric("requests")
     remote.press(.right)
-    remote.press(.right)
-    XCTAssertEqual(metric("requests"), requests, "Moving focus must not load")
-    let selected = focused.identifier
-    remote.press(.select)
-    wait("Selecting chip did not load") { self.metric("requests") > requests }
+    wait("Focus did not select Latest") { self.app.buttons["chip.date"].isSelected }
+    wait("Focused chip did not load") { self.metric("requests") > requests }
     ready()
-    XCTAssertTrue(app.buttons[selected].isSelected)
-    XCTAssertTrue(app.buttons[selected].hasFocus)
+    XCTAssertTrue(app.buttons["chip.date"].hasFocus)
     let firstRow = cards().allElementsBoundByIndex.filter { $0.frame.minY > 0 }.sorted {
       $0.frame.minY == $1.frame.minY ? $0.frame.minX < $1.frame.minX : $0.frame.minY < $1.frame.minY
     }
@@ -178,30 +214,30 @@ import XCTest
     XCTAssertEqual(metric("requests"), requests)
     XCTAssertEqual(app.buttons[identifier].frame.minY, frame.minY, accuracy: 4)
     screenshot("07-return-retained")
+    remote.press(.menu)
+    wait("Menu did not reach selected chip") { self.app.buttons["chip.trending"].hasFocus }
+    XCTAssertEqual(metric("count"), count)
+    XCTAssertEqual(metric("requests"), requests)
+    wait("Menu did not scroll to top") { self.metric("offset") < 2 }
+    screenshot("08-pinned-strip-from-menu")
+    remote.press(.menu)
+    XCTAssertTrue(app.tabBars.buttons.allElementsBoundByIndex.contains { $0.hasFocus })
+    remote.press(.down)
+    wait("One Down must enter the selected Trends chip", timeout: 3) {
+      self.app.buttons["chip.trending"].hasFocus
+    }
     tab("Hanime1")
     ready()
     tab("iwara")
-    print(
-      "SHELF_TAB_RETURN focus=\(focused.identifier) target=\(identifier) count=\(metric("count"))")
-    if app.tabBars.buttons.allElementsBoundByIndex.contains(where: { $0.hasFocus }) {
-      remote.press(.down)
+    remote.press(.down)
+    wait("One Down must enter the selected Trends chip", timeout: 3) {
+      self.app.buttons["chip.trending"].hasFocus
     }
-    wait("Tab return lost card focus") { self.app.buttons[identifier].hasFocus }
     XCTAssertEqual(metric("count"), count)
     XCTAssertEqual(metric("requests"), requests)
-    XCTAssertEqual(app.buttons[identifier].frame.minY, frame.minY, accuracy: 4)
     screenshot("09-tab-retained")
-    remote.press(.menu)
-    wait("Root Menu did not focus Tab bar") {
-      self.app.tabBars.buttons.allElementsBoundByIndex.contains { $0.hasFocus }
-    }
-    remote.press(.down)
-    print("SHELF_MENU_DOWN focus=\(focused.identifier)")
-    XCTAssertTrue(
-      focused.identifier.hasPrefix("chip.") || focused.identifier == "filter.primary"
-        || focused.identifier == "search.open", app.debugDescription)
-    screenshot("08-pinned-strip-from-menu")
   }
+
   func testIwaraQuickPlaybackAndStop() {
     launch()
     ready()
@@ -260,10 +296,7 @@ import XCTest
     launch()
     tab("漫画")
     ready(true)
-    select(app.buttons["chip.5"])
-    ready(true)
-    select(app.buttons["filter.primary"])
-    select(app.buttons["option.3"])
+    select(app.buttons["chip.3"])
     ready(true)
     focus(cards(true).firstMatch)
     screenshot("16-comic-grid")
@@ -325,10 +358,7 @@ import XCTest
     screenshot("21-settings-direction")
     tab("漫画")
     ready(true)
-    select(app.buttons["chip.5"])
-    ready(true)
-    select(app.buttons["filter.primary"])
-    select(app.buttons["option.3"])
+    select(app.buttons["chip.3"])
     ready(true)
     focus(cards(true).firstMatch)
     remote.press(.playPause)
@@ -419,6 +449,172 @@ import XCTest
     XCTAssertEqual(first.frame.height, 480, accuracy: 2)
     focus(first)
     screenshot("28-hanime-portrait-grid")
+  }
+
+  func testFilterEntryAndSingleStepNavigation() {
+    launch()
+    ready()
+    XCTAssertTrue(app.buttons["chip.trending"].isSelected)
+    XCTAssertTrue(app.tabBars.buttons["iwara"].hasFocus)
+    remote.press(.down)
+    wait("One Down must enter the selected Trends chip", timeout: 3) {
+      self.app.buttons["chip.trending"].hasFocus
+    }
+    remote.press(.down)
+    XCTAssertTrue(focused.identifier.hasPrefix("video.card."), app.debugDescription)
+    remote.press(.up)
+    wait("One Down must enter the selected Trends chip", timeout: 3) {
+      self.app.buttons["chip.trending"].hasFocus
+    }
+    for name in ["Hanime1", "漫画"] {
+      tab(name)
+      ready(name == "漫画")
+      remote.press(.down)
+      wait("One Down must enter first selected chip", timeout: 3) {
+        self.app.buttons["chip."].hasFocus
+      }
+      if name == "漫画" { screenshot("41-comic-flat-categories") }
+      let chips = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'chip.'"))
+        .allElementsBoundByIndex
+      if name == "Hanime1" {
+        XCTAssertEqual(chips.count, 11)
+      } else {
+        XCTAssertEqual(chips.count, 21, "Latest plus all 20 parent/child categories")
+      }
+      for index in 1..<chips.count {
+        remote.press(.right)
+        XCTAssertTrue(
+          chips[index].hasFocus, "Right must move one: \(index), actual \(focused.identifier)")
+      }
+      let last = chips.last!
+      wait("Last chip not selected") { last.isSelected }
+      let edge = app.buttons[name == "漫画" ? "search.open" : "filter.primary"].frame.minX
+      XCTAssertGreaterThanOrEqual(last.frame.minX, 70)
+      XCTAssertLessThanOrEqual(last.frame.maxX, edge - 10, "Last chip must be fully visible")
+      screenshot(name == "漫画" ? "35-comic-strip-end" : "34-hanime-strip-end")
+      remote.press(.right)
+      XCTAssertTrue(
+        app.buttons[name == "漫画" ? "search.open" : "filter.primary"].hasFocus, app.debugDescription)
+      let settledCalls = metric("requests")
+      remote.press(.menu)
+      XCTAssertTrue(app.tabBars.buttons.allElementsBoundByIndex.contains { $0.hasFocus })
+      remote.press(.down)
+      wait("Tab Down must restore selected end chip", timeout: 3) { last.hasFocus }
+      XCTAssertEqual(metric("requests"), settledCalls)
+      screenshot(name == "漫画" ? "40-comic-selected-entry" : "39-hanime-selected-entry")
+      remote.press(.right)
+      remote.press(.left)
+      XCTAssertTrue(last.hasFocus)
+      for index in stride(from: chips.count - 2, through: 0, by: -1) {
+        remote.press(.left)
+        XCTAssertTrue(
+          chips[index].hasFocus, "Left must move one: \(index), actual \(focused.identifier)")
+      }
+      wait("First chip not selected") { chips[0].isSelected }
+      ready(name == "漫画")
+    }
+  }
+  func testFocusDebounceAndThreePages() {
+    launch()
+    ready()
+    remote.press(.down)
+    let requests = metric("requests")
+    remote.press(.right, forDuration: 0.01)
+    remote.press(.right, forDuration: 0.01)
+    remote.press(.right, forDuration: 0.01)
+    wait("Final chip must select Views") { self.app.buttons["chip.views"].isSelected }
+    wait("Each settled focus should load once") { self.metric("requests") == requests + 3 }
+    ready()
+    XCTAssertTrue(app.buttons["chip.views"].hasFocus)
+    let first = cards().firstMatch.identifier
+    remote.press(.down)
+    XCTAssertTrue(focused.identifier.hasPrefix("video.card."), app.debugDescription)
+    remote.press(.up)
+    XCTAssertTrue(app.buttons["chip.views"].hasFocus)
+    XCTAssertEqual(cards().firstMatch.identifier, first)
+    XCTAssertEqual(metric("requests"), requests + 3)
+    remote.press(.down)
+    let pageSize = metric("count")
+    for _ in 0..<80 {
+      remote.press(.down)
+      if metric("index") >= pageSize * 3 - 4 { break }
+    }
+    XCTAssertGreaterThanOrEqual(metric("count"), pageSize * 3)
+    XCTAssertGreaterThanOrEqual(
+      metric("index"), pageSize * 3 - 4, "Focus must traverse the third page, not just prefetch it")
+    print("THREE_PAGES focusIndex=\(metric("index")) count=\(metric("count"))")
+    XCTAssertTrue(focused.identifier.hasPrefix("video.card."))
+    screenshot("36-three-page-pagination")
+    let total = metric("count")
+    let calls = metric("requests")
+    remote.press(.menu)
+    wait("Menu must reach selected chip") { self.app.buttons["chip.views"].hasFocus }
+    wait("Menu must scroll to top") { self.metric("offset") < 2 }
+    XCTAssertEqual(metric("count"), total)
+    XCTAssertEqual(metric("requests"), calls)
+    screenshot("37-menu-to-top")
+    remote.press(.menu)
+    XCTAssertTrue(app.tabBars.buttons.allElementsBoundByIndex.contains { $0.hasFocus })
+    remote.press(.down)
+    XCTAssertTrue(app.buttons["chip.views"].hasFocus)
+    select(app.buttons["filter.primary"])
+    let rating = app.buttons["filter.primary"].label
+    app.terminate()
+    app.launchArguments = ["--ui-testing", "--mute-playback"]
+    app.launch()
+    ready()
+    XCTAssertTrue(app.buttons["chip.trending"].isSelected, "Cold launch must not restore Views")
+    XCTAssertEqual(
+      app.buttons["filter.primary"].label, rating, "Rating must persist across cold launches")
+  }
+
+  func testRapidFocusDebounceIntegration() {
+    launch(["--ui-fast-focus"])
+    ready()
+    remote.press(.down)
+    wait("One Down must enter the selected Trends chip", timeout: 3) {
+      self.app.buttons["chip.trending"].hasFocus
+    }
+    let initial = metric("requests")
+    let original = cards().firstMatch.identifier
+    remote.press(.playPause)
+    wait("100ms focus burst did not settle on Views") { self.app.buttons["chip.views"].isSelected }
+    wait("Fast intermediate chips must not request") { self.metric("requests") == initial + 1 }
+    ready()
+    XCTAssertTrue(app.buttons["chip.views"].hasFocus)
+    XCTAssertNotEqual(cards().firstMatch.identifier, original)
+    XCTAssertTrue(app.staticTexts["browse.metrics"].label.contains("key=views|"))
+    print("SYNTHETIC_FOCUS_BURST 100ms updates; one request for final chip only")
+    screenshot("38-focus-debounce")
+  }
+
+  func testHanimeSearchKeepsCategory() {
+    launch()
+    tab("Hanime1")
+    ready()
+    select(app.buttons["chip.MMD"])
+    ready()
+    focus(cards().firstMatch)
+    remote.press(.right)
+    remote.press(.right)
+    remote.press(.right)
+    remote.press(.up)
+    XCTAssertTrue(app.buttons["filter.primary"].hasFocus)
+    remote.press(.right)
+    select(app.buttons["search.open"])
+    let field = app.descendants(matching: .any).matching(identifier: "search.input").firstMatch
+    select(field)
+    app.typeText("MMD")
+    remote.press(.down)
+    remote.press(.down)
+    remote.press(.down)
+    remote.press(.select)
+    let screen = app.otherElements["search.screen"]
+    XCTAssertTrue(
+      screen.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'video.card.'")).firstMatch
+        .waitForExistence(timeout: 45))
+    XCTAssertTrue(screen.staticTexts["browse.metrics"].label.contains("selection=MMD;"))
+    screenshot("42-hanime-scoped-search")
   }
 
 }

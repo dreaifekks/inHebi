@@ -1,11 +1,10 @@
-# Shelf media-first redesign
+# Filter navigation follow-up
 
-- [x] Stage 1: retained pagination, cancellation, auth expiry/JWT, source-owned album request context; compile/test/commit
-- [x] Stage 2: metadata and validated author/tag/related endpoints, hierarchical categories, fixtures; compile/test/commit
-- [x] Stage 3: media grids/filter strip/search/detail/reader/player UX; compile/test/commit
-- [x] Stage 4: offline/live suite, all section 14 probes and device UI regression, screenshots/fixes
-- [x] Final delivery prepared: compiled fixes, screenshot sign-off, and commit-based normal-install script
+- [x] Reproduce existing device behavior without app modifications
+- [x] Replace conflicting focus logic, debounce/cancel loads, flatten categories, default trends, Menu to top, robust pagination
+- [x] Strengthen device tests; 28 core tests with live mode; 15 device tests; generic build; inspect screenshots
+- [x] Prepare final commit and reproducible signed installation
 
-Post-commit installation and revision verification receipt: artifacts/final-verification.json (generated, ignored).
+Post-commit installation and exact revision/signature/process verification receipt: artifacts/final-verification.json (generated, ignored).
 
-Scope: P0/P1 plus reader position/spread/direction and player end/metadata. No playback resume, search history/scopes, subscriptions or ranking. No runtime downloads, no push, no subordinate sessions.
+Scope: list pages only. Details/player/reader/settings implementations unchanged. No runtime downloads, no push.

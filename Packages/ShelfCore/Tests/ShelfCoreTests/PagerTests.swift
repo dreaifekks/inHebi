@@ -35,4 +35,47 @@ import XCTest
         XCTAssertEqual(pager.requestCount, 2)
     }
 
+    func testChangedFilterCancelsRunningRequest() async {
+        let pager = Pager<Item>()
+        let started = expectation(description: "old request started")
+        let cancelled = expectation(description: "old request cancelled")
+        let old = Task {
+            await pager.load(key: "old", first: 0) { _ in
+                started.fulfill()
+                do { try await Task.sleep(for: .seconds(30)) }
+                catch { cancelled.fulfill(); throw error }
+                return Page(items: [Item(id: 1)], nextPage: nil)
+            }
+        }
+        await fulfillment(of: [started], timeout: 1)
+        await pager.load(reset: true, key: "new", first: 0) { _ in
+            Page(items: [Item(id: 2)], nextPage: nil)
+        }
+        await old.value
+        await fulfillment(of: [cancelled], timeout: 1)
+        XCTAssertEqual(pager.items.map(\.id), [2])
+        XCTAssertNil(pager.error)
+    }
+    func testLateResultCannotReplaceNewFilter() async {
+        let pager = Pager<Item>()
+        let started = expectation(description: "old suspended")
+        var reply: CheckedContinuation<Page<Item>, Never>?
+        let old = Task {
+            await pager.load(key: "old", first: 0) { _ in
+                await withCheckedContinuation { continuation in
+                    reply = continuation
+                    started.fulfill()
+                }
+            }
+        }
+        await fulfillment(of: [started], timeout: 1)
+        await pager.load(reset: true, key: "new", first: 0) { _ in
+            Page(items: [Item(id: 2)], nextPage: nil)
+        }
+        reply!.resume(returning: Page(items: [Item(id: 1)], nextPage: 1))
+        await old.value
+        XCTAssertEqual(pager.items.map(\.id), [2])
+        XCTAssertNil(pager.next)
+    }
+
 }

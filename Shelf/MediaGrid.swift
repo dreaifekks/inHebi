@@ -40,14 +40,12 @@ struct MediaGrid<Destination: View>: View {
   var comic = false
   var referer: String?
   let focus: FocusState<BrowseFocus?>.Binding
-  let namespace: Namespace.ID
-  let preferredCard: String?
   var preparing: String?
   var quickError: String?
   var failedID: String?
   let destination: (String) -> Destination
   let quick: (String) -> Void
-  let appeared: (Int) -> Void
+  let firstRowUp: (Int) -> Void
   @State private var loadedCovers = Set<String>()
   private var columns: Int { portrait ? ShelfLayout.portraitColumns : ShelfLayout.videoColumns }
   private var spacing: CGFloat { portrait ? ShelfLayout.portraitSpacing : ShelfLayout.videoSpacing }
@@ -89,8 +87,10 @@ struct MediaGrid<Destination: View>: View {
           .accessibilityValue(loadedCovers.contains(entry.id) ? "封面已加载" : "封面加载中")
           .accessibilityIdentifier("\(comic ? "album" : "video").card.\(entry.id)")
           .focused(focus, equals: .card(entry.id))
-          .prefersDefaultFocus(preferredCard == entry.id, in: namespace)
           .onPlayPauseCommand { quick(entry.id) }
+          .onMoveCommand { direction in
+            if direction == .up && index < columns { firstRowUp(index) }
+          }
           VStack(alignment: .leading, spacing: 8) {
             Text(entry.title).font(ShelfLayout.titleFont).lineLimit(2).frame(
               height: 72, alignment: .topLeading)
@@ -103,7 +103,6 @@ struct MediaGrid<Destination: View>: View {
         }
         .accessibilityElement(children: .contain).accessibilityIdentifier("entry.\(entry.id)")
         .id(entry.id)
-        .onAppear { appeared(index) }
       }
     }.scrollTargetLayout()
   }
@@ -115,66 +114,72 @@ struct FilterBar: View {
   let filterTitle: String?
   let filterAction: () -> Void
   let search: AnyView
+  @State private var testBurst = 0
   var body: some View {
-    HStack(spacing: 18) {
-      ScrollViewReader { proxy in
-        ScrollView(.horizontal, showsIndicators: false) {
-          HStack(spacing: 16) {
-            ForEach(options) { option in
-              Button {
-                selection = option.id
-              } label: {
-                HStack(spacing: 8) {
-                  if selection == option.id { Image(systemName: "checkmark") }
-                  Text(option.title)
-                }.font(.system(size: 29)).padding(.horizontal, 12).frame(height: 40)
-              }
-              .buttonStyle(.borderedProminent).tint(
-                selection == option.id ? .cyan : Color(white: 0.2)
-              )
-              .accessibilityAddTraits(selection == option.id ? .isSelected : [])
-              .accessibilityIdentifier("chip.\(option.id)")
-              .focused(focus, equals: .chip(option.id)).id(option.id)
+    HStack(spacing: 24) {
+      ScrollView(.horizontal, showsIndicators: false) {
+        HStack(spacing: ShelfLayout.chipSpacing) {
+          ForEach(options) { option in
+            Button {
+            } label: {
+              HStack(spacing: 10) {
+                Image(systemName: "checkmark").opacity(selection == option.id ? 1 : 0)
+                  .accessibilityHidden(true)
+                Text(option.title).fixedSize()
+              }.font(.system(size: 29)).frame(minWidth: ShelfLayout.chipWidth, minHeight: 40)
             }
-          }.padding(.horizontal, 8).padding(.vertical, 12)
-        }
-        .overlay(alignment: .trailing) {
-          LinearGradient(
-            colors: [.clear, .black.opacity(0.35)], startPoint: .leading, endPoint: .trailing
-          ).frame(width: 60).allowsHitTesting(false)
-        }
-        .focusSection()
-        .onAppear { if !selection.isEmpty { proxy.scrollTo(selection, anchor: .center) } }
-        .onChange(of: focus.wrappedValue) { _, value in
-          if case .chip(let id) = value { proxy.scrollTo(id, anchor: .center) }
-        }
-        .onMoveCommand { direction in
-          guard case .chip(let id) = focus.wrappedValue,
-            let index = options.firstIndex(where: { $0.id == id })
-          else { return }
-          if direction == .right {
-            focus.wrappedValue =
-              index + 1 < options.count
-              ? .chip(options[index + 1].id) : (filterTitle == nil ? .search : .filter)
-          } else if direction == .left && index > 0 {
-            focus.wrappedValue = .chip(options[index - 1].id)
+            .buttonStyle(.borderedProminent)
+            .tint(selection == option.id ? .cyan : Color(white: 0.2))
+            .accessibilityAddTraits(selection == option.id ? .isSelected : [])
+            .accessibilityIdentifier("chip.\(option.id)")
+            .focused(focus, equals: .chip(option.id))
+            .onMoveCommand { direction in
+              if direction == .right && option.id == options.last?.id {
+                focus.wrappedValue = filterTitle == nil ? .search : .filter
+              }
+            }
           }
-        }
+        }.padding(.horizontal, 24).padding(.vertical, 12)
       }
-      HStack(spacing: 16) {
-        Rectangle().fill(.secondary.opacity(0.3)).frame(width: 1, height: 40)
+      .accessibilityIdentifier("filter.chips")
+      HStack(spacing: 24) {
         if let filterTitle {
           Button(filterTitle, action: filterAction).font(.system(size: 29))
             .frame(maxWidth: .infinity).accessibilityIdentifier("filter.primary")
             .accessibilityValue(filterTitle).accessibilityHint("按下切换")
             .focused(focus, equals: .filter)
-        } else {
-          Spacer()
+            .onMoveCommand { direction in
+              if direction == .left, let last = options.last { focus.wrappedValue = .chip(last.id) }
+              if direction == .right { focus.wrappedValue = .search }
+            }
         }
         search.focused(focus, equals: .search)
-      }.frame(width: ShelfLayout.filterFixedWidth).focusSection()
+          .onMoveCommand { direction in
+            if direction == .left, let last = options.last {
+              focus.wrappedValue = filterTitle == nil ? .chip(last.id) : .filter
+            }
+          }
+      }.frame(width: filterTitle == nil ? 100 : ShelfLayout.filterFixedWidth)
     }.frame(height: ShelfLayout.filterHeight)
       .padding(.horizontal, ShelfLayout.horizontalInset).background(.regularMaterial)
+      .onPlayPauseCommand(
+        perform: TestMode.enabled && ProcessInfo.processInfo.arguments.contains("--ui-fast-focus")
+          ? { testBurst += 1 } : nil
+      )
+      .task(id: testBurst) {
+        guard testBurst > 0 else { return }
+        // XCTest remote calls take ~0.5s each. Inject 100ms focus updates to exercise
+        // the real view debounce + request path, separately from native key routing.
+        for option in options.dropFirst().prefix(3) {
+          focus.wrappedValue = .chip(option.id)
+          do { try await Task.sleep(for: .milliseconds(100)) } catch { return }
+        }
+      }
+      .task(id: focus.wrappedValue) {
+        guard case .chip(let id) = focus.wrappedValue, id != selection else { return }
+        do { try await Task.sleep(for: .milliseconds(400)) } catch { return }
+        selection = id
+      }
   }
 }
 struct OptionSheet: View {
@@ -215,7 +220,7 @@ struct LoadingFooter: View {
   let retry: () -> Void
   var body: some View {
     VStack(spacing: 20) {
-      if loading { ProgressView() }
+      if loading { ProgressView("正在加载下一页…") }
       if let error {
         Text(error).foregroundStyle(.orange)
         Button("重试", action: retry)

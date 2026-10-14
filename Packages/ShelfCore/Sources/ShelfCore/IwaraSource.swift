@@ -3,7 +3,7 @@ import CryptoKit
 
 public actor IwaraSource: VideoSource {
     public nonisolated let name = "iwara"
-    public nonisolated let sorts = [SourceOption("date", "最新"), SourceOption("trending", "趋势"), SourceOption("popularity", "热门"), SourceOption("views", "播放"), SourceOption("likes", "喜欢")]
+    public nonisolated let sorts = [SourceOption("trending", "趋势"), SourceOption("date", "最新"), SourceOption("popularity", "热门"), SourceOption("views", "播放"), SourceOption("likes", "喜欢")]
     public nonisolated let ratings = [SourceOption("all", "全部"), SourceOption("general", "一般"), SourceOption("ecchi", "成人")]
     // Verified against yt-dlp/extractor/iwara.py on 2026-10-14.
     public static let versionSalt = "mSvL05GfEmeEmsEYfGCnVpEjYgTJraJN"

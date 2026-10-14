@@ -35,6 +35,11 @@ final class MetadataTests: XCTestCase {
     func testWnacgHierarchyAndPreviewMetadata() throws {
         let categories = try WnacgSource.parseCategories(html("wnacg-list.html"))
         XCTAssertEqual(categories.map(\.id), ["5", "6", "7", "19"])
+        let flat = categories.flatMap(\.flattened)
+        XCTAssertEqual(flat.count, categories.count + categories.reduce(0) { $0 + $1.children.count })
+        XCTAssertEqual(Array(flat.prefix(3)).map(\.title), ["同人誌", "同人誌·漢化", "同人誌·日語"])
+        XCTAssertEqual(Set(flat.map(\.id)).count, flat.count)
+        XCTAssertEqual(flat.last?.id, categories.last?.children.last?.id ?? categories.last?.id)
         XCTAssertEqual(categories[0].children.map(\.id), ["1", "12", "16", "2", "37", "22", "3"])
         XCTAssertEqual(categories[1].children.first?.title, "漢化")
         XCTAssertNotEqual(categories[0].children.first?.id, categories[1].children.first?.id)

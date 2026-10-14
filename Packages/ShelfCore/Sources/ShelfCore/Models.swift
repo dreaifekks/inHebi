@@ -9,6 +9,9 @@ public struct SourceOption: Identifiable, Hashable, Sendable {
     public let id: String
     public let title: String
     public var children: [SourceOption]
+    public var flattened: [SourceOption] {
+        [SourceOption(id, title)] + children.map { SourceOption($0.id, title + "·" + $0.title) }
+    }
     public init(_ id: String, _ title: String, children: [SourceOption] = []) { self.id = id; self.title = title; self.children = children }
 }
 public struct Video: Identifiable, Hashable, Sendable {

@@ -8,6 +8,8 @@ enum ShelfLayout {
   static let videoSpacing: CGFloat = 48
   static let portraitSpacing: CGFloat = 40
   static let rowSpacing: CGFloat = 40
+  static let chipWidth: CGFloat = 160
+  static let chipSpacing: CGFloat = 24
   static let filterHeight: CGFloat = 80
   static let filterFixedWidth: CGFloat = 420
   static let cardRadius: CGFloat = 16

@@ -13,7 +13,7 @@
 
 ## inHebi / iCloud 本轮实现状态
 
-- 对外改名已单独提交；内部工程与类型名保持 Shelf，不删除电视上的旧应用。
+- 对外改名已单独提交；内部工程、目录和 scheme 已统一为 inHebi，类型和核心模块使用 InHebi 前缀，不删除电视上的旧应用。
 - SwiftData 历史/续读、多收藏夹、详情星标、“我的”页和 iCloud 状态/同步日志已实现。模型约束、存储语义与代码入口见 README 的 iCloud 小节。
 - 离线 40 项通过、3 项联网跳过；29 项常规真机用例均取得通过结果（首轮 23 通过 / 6 失败，修复后定向补齐）。另有 1 项真实 CloudKit 专用用例通过，确认电视已登录 iCloud、收藏与取消均导出成功，测试收藏及新建空夹已清理。
 - 清除 API 密钥环境变量后，Xcode 已登录账号自动 provisioning 成功，签名产物与 profile 含目标 App ID、iCloud 容器和开发推送权限。正常模式下真实存储已成功启动。API 密钥同日实测 Authentication failed，暂不使用。
@@ -29,7 +29,7 @@
 这些是用户在使用后明确提出或拍板的，改动前先确认是否仍然成立。
 
 - 收藏星标实心只表示“在默认收藏夹里”，短按切换默认收藏；只在其他收藏夹时为空心，按钮文字显示所在收藏夹数量，长按仍打开多收藏夹选择列表。
-- 应用改名 inHebi，bundle ID 为 `com.dreaife.inhebi`，iCloud 容器为 `iCloud.com.dreaife.inhebi`；内部工程名称暂时保留 Shelf。
+- 应用改名 inHebi，bundle ID 为 `com.dreaife.inhebi`，iCloud 容器为 `iCloud.com.dreaife.inhebi`；内部工程名称统一为 inHebi，SwiftData 模型名和属性保持不变。
 - 列表：横版 4 列、竖版 5 列。没选 3 列是因为 Hanime1 缩略图原图只有 640 像素宽，放大会糊。
 - 筛选条：聚焦即切换，焦点停留 0.4 秒后加载，不需要按确认。这推翻了 UX 规格里“按下才切换”的设计。
 - 筛选条位置：左边是可横向滚动的芯片，最右边固定排序（或分级）和搜索。
@@ -58,7 +58,7 @@
 
 - 调试站点接口必须用 Swift URLSession 脚本。这台 Mac 上 curl 和 Python 会被 Cloudflare 拦下，结论会是错的。
 - 不下载 tvOS 模拟器运行时，磁盘空间紧张。真机验证用局域网里已配对的 Apple TV 4K 第三代，tvOS 27。真机测试会实际占用客厅的电视，播放必须静音、只播几秒、结束后退出应用。
-- Xcode 已登录开发者账号，签名优先使用 Xcode 账号，团队 ALZ45VUZFN。运行脚本前 `unset SHELF_AUTH_KEY_PATH SHELF_AUTH_KEY_ID SHELF_AUTH_KEY_ISSUER`，保留自动 provisioning。API 密钥在 2026-10-14 实测认证失败，暂不使用；旧文档的“Xcode 没登录”已经过时。密钥内容、Key ID/Issuer ID 和电视设备标识不能写进仓库。
+- Xcode 已登录开发者账号，签名优先使用 Xcode 账号，团队 ALZ45VUZFN。运行脚本前 `unset INHEBI_AUTH_KEY_PATH INHEBI_AUTH_KEY_ID INHEBI_AUTH_KEY_ISSUER`，保留自动 provisioning。API 密钥在 2026-10-14 实测认证失败，暂不使用；旧文档的“Xcode 没登录”已经过时。密钥内容、Key ID/Issuer ID 和电视设备标识不能写进仓库。
 - 截图里有成人站点的封面。核对版式时不要直接看原图：只截取顶部标签栏和筛选条那一条，或者先缩到 128 像素宽再放大成马赛克。注意 `sips -c` 的裁剪是从中心裁的，不是从顶部，曾经因此误看到封面；顶部裁剪要用 CoreGraphics 按左上角原点裁。
 - 焦点问题先取真机焦点记录再改，取回方法在 README 的“DEBUG 焦点记录”一节。之前连续两轮真机测试全部通过，用户实际操作仍然不对，原因是测试只在加载完成后才按键、漏测了按上方向、也模拟不了触控面滑动。
 - Codex 拒绝过成人站点的接口侦察类任务，但接受了应用开发本身。需要侦察新站点接口时派给 Claude。
@@ -69,7 +69,7 @@
 - 指腹滑动的手感，以及芯片宽度和 0.4 秒停留是否合手。自动化测试只能模拟按键。
 - 主屏幕上图标的三层视差效果。
 - 有声播放。所有测试都是静音的。
-- inHebi 全新安装后的 iwara 登录流程，用户自行输入账号；旧 Shelf 的登录状态不迁移。
+- inHebi 全新安装后的 iwara 登录流程，用户自行输入账号；旧应用的登录状态不迁移。
 - Siri Remote 指腹滑动和长按的实际手感；自动化已验证短按/长按、我的页导航、收藏夹管理及 CloudKit 导出。
 - 未来 Mac/iOS 客户端的跨设备往返同步尚未验收；本轮确认的是 Apple TV 的真实私有库导入/导出事件。
 

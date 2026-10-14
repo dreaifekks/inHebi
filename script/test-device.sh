@@ -6,13 +6,13 @@ shift
 result="artifacts/device-ui-$(date +%Y%m%d-%H%M%S).xcresult"
 mkdir -p artifacts/screenshots
 signing_args=(-allowProvisioningUpdates -allowProvisioningDeviceRegistration)
-if [[ -n "${SHELF_AUTH_KEY_PATH:-}" ]]; then
-  signing_args+=(-authenticationKeyPath "$SHELF_AUTH_KEY_PATH"
-    -authenticationKeyID "${SHELF_AUTH_KEY_ID:?Set SHELF_AUTH_KEY_ID}"
-    -authenticationKeyIssuerID "${SHELF_AUTH_KEY_ISSUER:?Set SHELF_AUTH_KEY_ISSUER}")
+if [[ -n "${INHEBI_AUTH_KEY_PATH:-}" ]]; then
+  signing_args+=(-authenticationKeyPath "$INHEBI_AUTH_KEY_PATH"
+    -authenticationKeyID "${INHEBI_AUTH_KEY_ID:?Set INHEBI_AUTH_KEY_ID}"
+    -authenticationKeyIssuerID "${INHEBI_AUTH_KEY_ISSUER:?Set INHEBI_AUTH_KEY_ISSUER}")
 fi
 test_status=0
-xcodebuild -project Shelf.xcodeproj -scheme Shelf -configuration Debug \
+xcodebuild -project inHebi.xcodeproj -scheme inHebi -configuration Debug \
   -sdk appletvos -destination "platform=tvOS,id=$device" \
   -derivedDataPath artifacts/DerivedDataDevice -resultBundlePath "$result" \
   -parallel-testing-enabled NO "${signing_args[@]}" "$@" test || test_status=$?

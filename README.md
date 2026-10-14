@@ -128,7 +128,7 @@ Debug App 同时带 `--ui-testing --mute-playback` 启动参数时静音，显�
 
 `Shelf/BrowseList.swift` 是视频/漫画共用的列表焦点与滚动容器。芯片条用 `Shelf/ChipStrip.swift` 中的 UIKit UIScrollView/UIStackView/UIButton，焦点矩形严格限制在 80pt 条内；按钮最小宽 220pt、间距 24pt，末端无渐变遮挡。保留系统 TabView，上下左右由原生焦点引擎按实际布局移动，列表不再使用 onMoveCommand 或 focusHeading 搬焦点。
 
-生产代码仅在两种情况请求列表焦点：从顶栏/网格实际进入错误的芯片时归到当前选中芯片（依据前后视图层级）；Menu 在网格内时滚回顶部并请求选中芯片。芯片内部左右移动不纠正位置，停留 400ms 后切分类；进入固定排序/搜索按钮不改分类。SwiftUI FocusState 只观察卡片和固定按钮；不会把它设置成尚未注册的芯片 ID。焦点通知仅用于 DEBUG 记录，不更改焦点。
+筛选条上下各有一条 10pt 的 `UIFocusGuide`，直接指向当前选中芯片；进入条内后禁用两条引导，离开后启用，判断仅依据实际焦点所在视图，不依赖方向键或 focusHeading。跨行进入不再先聚焦错误芯片再纠正。Menu 通过已注册在 UIKit 芯片条上的 SwiftUI `.strip` 焦点目标返回；没有原来的根控制器重置或异步入条纠正。芯片内部左右仍由原生引擎移动，停留 400ms 后切分类，排序/搜索仍按下生效。引导不绘制内容，布局和按钮外观不变。参见 [Apple UIFocusGuide](https://developer.apple.com/documentation/uikit/uifocusguide)。
 
 分页同时观察滚动位置和当前卡片是否接近末尾，每次追加后重新评估；网络请求由 Pager 持有，切换筛选时取消旧请求，滚动条件改变不会中途取消翻页请求。底部显示加载提示。核心测试覆盖取消和过期结果隔离。
 
@@ -150,3 +150,5 @@ xcrun devicectl device copy from --device "$SHELF_DEVICE_ID" \
 ```
 
 同时说明当时的数据源、是否刚切分类，以及最后几次是点按还是滑动。日志跨启动保留尾部，但后续操作会覆盖旧行；tvOS 缓存也可能被系统清理。
+
+单次入条回归 `testSingleUpdateStripEntry` 在三个源选中非首项，分别从顶栏和网格左侧进入，断言原生焦点更新计数只增加 1；计数仅 UI 测试模式可见。

@@ -7,25 +7,26 @@ struct ChipStrip: UIViewRepresentable {
   let options: [SourceOption]
   let selection: String
   @Binding var focus: BrowseFocus?
-  let focusRequest: Int
   var injectedID: String?
   var injectedRequest = 0
   func makeUIView(context: Context) -> StripView { StripView() }
   func updateUIView(_ view: StripView, context: Context) {
     view.changed = { focus = $0 }
     view.configure(
-      options: options, selected: selection, focusRequest: focusRequest, injectedID: injectedID,
+      options: options, selected: selection, injectedID: injectedID,
       injectedRequest: injectedRequest)
   }
   final class StripView: UIView {
     let scroll = UIScrollView()
     let stack = UIStackView()
+    let topEntry = UIFocusGuide()
+    let bottomEntry = UIFocusGuide()
     var buttons: [String: UIButton] = [:]
     var selected = ""
     var changed: (BrowseFocus?) -> Void = { _ in }
-    var request = 0
     var injection = 0
     var preferred: UIView?
+    var transitionCount = 0
     override var preferredFocusEnvironments: [UIFocusEnvironment] {
       if let preferred { return [preferred] }
       if let button = buttons[selected] { return [button] }
@@ -42,6 +43,16 @@ struct ChipStrip: UIViewRepresentable {
       stack.spacing = ShelfLayout.chipSpacing
       addSubview(scroll)
       scroll.addSubview(stack)
+      for guide in [topEntry, bottomEntry] {
+        addLayoutGuide(guide)
+        NSLayoutConstraint.activate([
+          guide.leadingAnchor.constraint(equalTo: leadingAnchor),
+          guide.trailingAnchor.constraint(equalTo: trailingAnchor),
+          guide.heightAnchor.constraint(equalToConstant: 10),
+        ])
+      }
+      topEntry.topAnchor.constraint(equalTo: topAnchor).isActive = true
+      bottomEntry.bottomAnchor.constraint(equalTo: bottomAnchor).isActive = true
       NSLayoutConstraint.activate([
         scroll.leadingAnchor.constraint(equalTo: leadingAnchor),
         scroll.trailingAnchor.constraint(equalTo: trailingAnchor),
@@ -58,7 +69,7 @@ struct ChipStrip: UIViewRepresentable {
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
     func configure(
-      options: [SourceOption], selected: String, focusRequest: Int, injectedID: String?,
+      options: [SourceOption], selected: String, injectedID: String?,
       injectedRequest: Int
     ) {
       self.selected = selected
@@ -95,55 +106,41 @@ struct ChipStrip: UIViewRepresentable {
         }
         buttons[option.id]?.setNeedsUpdateConfiguration()
       }
+      for guide in [topEntry, bottomEntry] {
+        guide.preferredFocusEnvironments = buttons[selected].map { [$0] } ?? []
+      }
       if injection != injectedRequest, let injectedID {
         injection = injectedRequest
-        requestFocus(id: injectedID, reason: "test-focus-injection")
-      }
-      if request != focusRequest {
-        request = focusRequest
-        requestFocus(id: selected, reason: "menu")
+        injectFocus(id: injectedID)
       }
     }
-    private func requestFocus(id: String, reason: String, from origin: UIView? = nil) {
-      // Representable updates and didUpdateFocus both run inside UIKit update passes.
-      DispatchQueue.main.async { [weak self, weak origin] in
+    private func injectFocus(id: String) {
+      // Only the UI timing probes request synthetic chip moves.
+      DispatchQueue.main.async { [weak self] in
         guard let self, let button = self.buttons[id] else { return }
-        if reason == "strip-entry" && origin?.isFocused != true { return }
         self.preferred = button
-        FocusTrace.mark("set-focus reason=\(reason) target=chip.\(id)")
-        let current = UIFocusSystem.focusSystem(for: self)?.focusedItem as? UIView
-        if current?.isDescendant(of: self) == true {
-          self.setNeedsFocusUpdate()
-          self.updateFocusIfNeeded()
-        } else {
-          // Only an environment containing the current item can request a focus update.
-          self.window?.rootViewController?.setNeedsFocusUpdate()
-          self.window?.rootViewController?.updateFocusIfNeeded()
-        }
-        // Keep the preference until didUpdateFocus confirms the transfer.
+        FocusTrace.mark("set-focus reason=test-focus-injection target=chip.\(id)")
+        self.setNeedsFocusUpdate()
+        self.updateFocusIfNeeded()
       }
     }
     override func didUpdateFocus(
       in context: UIFocusUpdateContext, with coordinator: UIFocusAnimationCoordinator
     ) {
       super.didUpdateFocus(in: context, with: coordinator)
+      if TestMode.enabled {
+        transitionCount += 1
+        for button in buttons.values { button.accessibilityValue = "focusUpdates=\(transitionCount)" }
+      }
+      // Disable both entry guides once inside, so horizontal navigation and exits
+      // remain native. No key event or movement heading participates in this rule.
+      let inside = context.nextFocusedView?.isDescendant(of: self) == true
+      topEntry.isEnabled = !inside
+      bottomEntry.isEnabled = !inside
       if let button = context.nextFocusedView as? UIButton, button.isDescendant(of: self),
         let id = buttons.first(where: { $0.value === button })?.key
       {
         if button === preferred { preferred = nil }
-        var previous = context.previouslyFocusedView
-        var fromAnotherRow = previous == nil
-        while let node = previous {
-          if node is UITabBar || node.accessibilityIdentifier == "browse.grid" {
-            fromAnotherRow = true
-            break
-          }
-          previous = node.superview
-        }
-        if fromAnotherRow, id != selected {
-          requestFocus(id: selected, reason: "strip-entry", from: button)
-          return
-        }
         changed(.chip(id))
       } else if context.previouslyFocusedView?.isDescendant(of: self) == true {
         changed(nil)

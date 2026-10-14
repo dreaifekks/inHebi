@@ -1,10 +1,11 @@
-# Three-row focus diagnosis
+# Direct filter-strip entry
 
-- [x] Reproduce using normal launch arguments, real preferences and Keychain
-- [x] Record native before/after focus hierarchy; distinguish loading and geometry from preferences
-- [x] Remove direction-key and focusHeading-driven focus corrections; bound native chip focus rectangles to the strip
-- [x] Verify Menu transfer, timing, all old regressions and normal three-source row assertions
-- [x] Inspect screenshots/logs and document trace retrieval
-- Final commit and exact-version installation receipt: artifacts/final-verification.json
+- Preserve the user's build-11 two-update trace in artifacts/entry-before-trace.txt.
+- Replace post-entry correction with native guides; keep horizontal navigation native.
+- Register one native strip focus target for explicit Menu return.
+- Verify original 18 device cases plus a strict single-update entry case.
+- Inspect final strip screenshots, commit without pushing, install matching development build.
 
-No detail/player/reader changes, no simulator runtime download, no push. Swipe feel requires a physical Siri Remote.
+Acceptance logs: artifacts/entry-device-acceptance.log and artifacts/entry-simulator-final.log.
+Final installed-version receipt: artifacts/final-verification.json.
+Do not edit icon resources or artifacts/icon. Physical touch-surface swipes remain manual verification.

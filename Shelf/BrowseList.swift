@@ -31,7 +31,6 @@ struct BrowseList<Destination: View, Search: View>: View {
   @Environment(\.dismiss) private var dismiss
   @State private var focus: BrowseFocus?
   @FocusState private var controlFocus: BrowseFocus?
-  @State private var focusRequest = 0
   @State private var position = ScrollPosition(idType: String.self)
   @State private var visible = false
   @State private var nearBottom = false
@@ -53,7 +52,6 @@ struct BrowseList<Destination: View, Search: View>: View {
         if hasBar {
           FilterBar(
             options: options, selection: $selection, focus: $focus, controlFocus: $controlFocus,
-            focusRequest: focusRequest,
             filterTitle: filterTitle, filterAction: filterAction,
             search: AnyView(
               NavigationLink(destination: search) {
@@ -98,8 +96,7 @@ struct BrowseList<Destination: View, Search: View>: View {
               if hasBar {
                 FocusTrace.mark("set-focus reason=menu target=\(selection)")
                 position.scrollTo(y: 0)
-                controlFocus = nil
-                focusRequest += 1
+                controlFocus = .strip
               } else {
                 dismiss()
               }
@@ -112,6 +109,7 @@ struct BrowseList<Destination: View, Search: View>: View {
         }
       }
       .onChange(of: controlFocus) { old, new in
+        if new == .strip { return }
         if let new { focus = new } else if focus == old { focus = nil }
       }
       .onAppear {

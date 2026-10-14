@@ -685,6 +685,31 @@ import XCTest
       press(.up, row: "top", stage: name + " changed-category-top")
     }
   }
+  func testSingleUpdateStripEntry() {
+    launch()
+    for (name, id) in [("iwara", "likes"), ("Hanime1", "裏番"), ("漫画", "5")] {
+      if name != "iwara" { tab(name) }
+      ready(name == "漫画")
+      let selected = app.buttons["chip." + id]
+      select(selected)
+      press(.up, row: "top", stage: name + " entry-top")
+      func updates() -> Int {
+        Int((selected.value as? String ?? "").split(separator: "=").last ?? "") ?? -1
+      }
+      let topCount = updates()
+      XCTAssertGreaterThanOrEqual(topCount, 0)
+      press(.down, row: "strip:chip." + id, stage: name + " single-top-entry")
+      XCTAssertEqual(updates(), topCount + 1, "Entry must not land on an intermediate chip")
+      press(.down, row: "grid:", stage: name + " entry-grid")
+      for _ in 0..<4 { remote.press(.left) }
+      XCTAssertTrue(currentRow().hasPrefix("grid:"))
+      XCTAssertGreaterThan(selected.frame.midX, focused.frame.midX + 100)
+      let gridCount = updates()
+      press(.up, row: "strip:chip." + id, stage: name + " single-grid-entry")
+      XCTAssertEqual(updates(), gridCount + 1, "Grid entry must be a single native update")
+      screenshot("54-direct-entry-" + (name == "漫画" ? "comic" : name == "Hanime1" ? "hanime" : "iwara"))
+    }
+  }
   func testNormalDirectionalRows() { directionalRows(normal: true) }
   func testTestingDirectionalRows() { directionalRows(normal: false) }
   func testDirectionalTiming() {

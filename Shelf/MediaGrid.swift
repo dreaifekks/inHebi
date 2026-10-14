@@ -4,7 +4,7 @@ import SwiftUI
 enum BrowseFocus: Hashable {
   case card(String)
   case chip(String)
-  case filter, search
+  case filter, search, strip
 }
 struct MediaEntry: Identifiable {
   let id: String
@@ -109,7 +109,6 @@ struct FilterBar: View {
   @Binding var selection: String
   @Binding var focus: BrowseFocus?
   let controlFocus: FocusState<BrowseFocus?>.Binding
-  let focusRequest: Int
   let filterTitle: String?
   let filterAction: () -> Void
   let search: AnyView
@@ -119,10 +118,11 @@ struct FilterBar: View {
   var body: some View {
     HStack(spacing: 24) {
       ChipStrip(
-        options: options, selection: selection, focus: $focus, focusRequest: focusRequest,
+        options: options, selection: selection, focus: $focus,
         injectedID: injectedID, injectedRequest: injectedRequest
       )
       .accessibilityIdentifier("filter.chips")
+      .focused(controlFocus, equals: .strip)
       HStack(spacing: 24) {
         if let filterTitle {
           Button(filterTitle, action: filterAction).font(.system(size: 29))

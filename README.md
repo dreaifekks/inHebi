@@ -2,6 +2,14 @@
 
 自用 tvOS 原生应用：iwara / Hanime1 视频、wnacg 漫画。当前状态、用户做过的决定和工作约定见 [docs/HANDOFF.md](docs/HANDOFF.md)。SwiftUI + AVKit + URLSession；无 WebView、后端或下载；SwiftData 保存观看历史、阅读页码和多收藏夹，通过 CloudKit 私有数据库同步。本地保存筛选偏好。最低 tvOS 18；InHebiCore 支持 iOS 18 / macOS 15 / tvOS 18。唯一外部依赖是 SwiftSoup（锁定文件当前解析为 2.14.2）。
 
+## 合并验收（2026-10-14）
+
+已合并阅读器/AVKit 分支 `97403c2` 与改名/iCloud 分支 `09f18c0`。本轮内部改名后，离线 40 项通过（3 项联网跳过）、联网 43 项全部通过、generic tvOS 编译通过；本机没有 tvOS 模拟器运行时。
+
+真机常规 34 项全部取得通过结果：完整首轮 32 通过 / 2 失败；取焦点日志定位到普通网格卡片的空 contextMenu 截获 Menu，限定只有收藏/历史可移除卡片创建菜单后，5 项定向回归全部通过。真实 CloudKit 专用验收另有 1/1 通过，新增和清理收藏均导出成功。日志为 `artifacts/full-device.log`、`artifacts/menu-fix-device.log`、`artifacts/final-cloudkit.log`；正常签名交付回执为 `artifacts/final-install.log`。
+
+新增 `testReaderClosingBurstDoesNotReopen` 覆盖上下两个方向收起后的 100/300/600ms 连发及静默后重开；按钮行 Up 断言具体当前页 1、17、双页起始 23。`testMenuDismissesWhilePlayingBothSources` 不先暂停，在两源静音播放几秒后直接按 Menu 逐层退出，检查播放器消失、停止状态与停止时间稳定。自动化按键/时间注入不等同于 Siri Remote 指腹滑动。
+
 ## 打开与验证
 
 打开 `inHebi.xcodeproj`，选择 **inHebi** scheme。工程已提交，无需 XcodeGen/Tuist。添加 App Swift 文件后可运行 `python3 script/generate-project.py` 重新生成工程；生成器会覆盖 pbxproj，团队配置也应同步修改生成器。
@@ -99,7 +107,7 @@ TEST_RUNNER_INHEBI_CLOUD_TEST=1 ./script/test-device.sh "$INHEBI_DEVICE_ID" \
 
 Debug 焦点记录增加阅读面板的呼出方向、当前页、可见缩略图赋焦及被忽略的边缘事件，以及 AVKit 公开控制栏显隐/退出回调。`--ui-test-controls-probe` 仅在 UI 测试模式限制媒体到约 3 秒后暂停，常规使用不受影响。阅读器连发测试注入 100/200/900/1100ms 的确定事件时间，验证初始窗口不会缩短且连续输入可延长窗口，不能代替实体 Siri Remote 滑动手感确认。
 
-2026-10-14 面板交互验收（本分支 build 18）：离线 28 通过 / 3 联网跳过，`verify.sh` generic 编译通过，10 个受影响真机用例最终通过。较后页覆盖第 17 页、双页起始第 23 页及从第 21 页续读后首次呼出；基线第 17 页测试没有复现“回到第一页”，因此修订采用显式可见性赋焦，并保留实体操作验证边界。真机测试记录及失败后定向修正过程见 `progress.md`。
+2026-10-14 面板交互验收（合并前阅读器分支 build 18）：离线 28 通过 / 3 联网跳过，`verify.sh` generic 编译通过，10 个受影响真机用例最终通过。较后页覆盖第 17 页、双页起始第 23 页及从第 21 页续读后首次呼出；基线第 17 页测试没有复现“回到第一页”，因此修订采用显式可见性赋焦，并保留实体操作验证边界。真机测试记录及失败后定向修正过程见 `progress.md`。
 
 ## 数据源接口与易变位置
 

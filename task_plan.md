@@ -37,3 +37,12 @@ CoreDevice discovery timed out inside the sandbox; succeeded with authorized hos
 - Release handoff: new commit and normal signed build 18, then requested read-only Claude child review; forward its result unchanged and wait for coordinator decisions.
 
 Scope excludes identifiers, display name, Info.plist and project generator naming, which another worktree owns.
+
+
+# inHebi integration delivery — 2026-10-14
+
+- [x] Read both versions of README/HANDOFF; merge both feature branches as a separate merge commit.
+- [x] Add closing-direction quiet window, current-page Up focus, and Menu-while-playing regression coverage.
+- [x] Rename internal project/targets/module/types/scripts in a separate commit; preserve models, identifiers and Top Shelf assets.
+- [x] Finish offline/live tests, generic compile, full device suite, targeted failure fixes and real CloudKit export.
+- Normal signed installation and requested Claude read-only review are the remaining delivery actions after the acceptance commit; use artifacts/final-install.log for the actual installed build.

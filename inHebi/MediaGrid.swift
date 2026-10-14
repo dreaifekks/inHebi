@@ -69,19 +69,7 @@ struct MediaGrid<Destination: View>: View {
     ) {
       ForEach(Array(entries.enumerated()), id: \.element.id) { index, entry in
         VStack(alignment: .leading, spacing: InHebiLayout.coverTitleSpacing) {
-          cardLink(entry)
-            .buttonStyle(.card)
-            .accessibilityLabel(entry.title)
-            .accessibilityValue(loadedCovers.contains(entry.id) ? "封面已加载" : "封面加载中")
-            .accessibilityIdentifier("\(comic ? "album" : "video").card.\(entry.id)")
-            .focused(focus, equals: .card(entry.id))
-            .onPlayPauseCommand { quick(entry.id) }
-            .contextMenu {
-              if let remove {
-                Button("从这里移除", role: .destructive) { remove(entry.id) }
-                  .accessibilityIdentifier("library.remove")
-              }
-            }
+          cardWithMenu(entry)
 
           VStack(alignment: .leading, spacing: 8) {
             Text(entry.title).font(InHebiLayout.titleFont).lineLimit(2).frame(
@@ -99,6 +87,25 @@ struct MediaGrid<Destination: View>: View {
           .id(entry.id)
       }
     }.scrollTargetLayout()
+  }
+  @ViewBuilder private func cardWithMenu(_ entry: MediaEntry) -> some View {
+    if let remove {
+      cardContent(entry).contextMenu {
+        Button("从这里移除", role: .destructive) { remove(entry.id) }
+          .accessibilityIdentifier("library.remove")
+      }
+    } else {
+      cardContent(entry)
+    }
+  }
+  private func cardContent(_ entry: MediaEntry) -> some View {
+    cardLink(entry)
+      .buttonStyle(.card)
+      .accessibilityLabel(entry.title)
+      .accessibilityValue(loadedCovers.contains(entry.id) ? "封面已加载" : "封面加载中")
+      .accessibilityIdentifier("\(comic ? "album" : "video").card.\(entry.id)")
+      .focused(focus, equals: .card(entry.id))
+      .onPlayPauseCommand { quick(entry.id) }
   }
   @ViewBuilder private func cardLink(_ entry: MediaEntry) -> some View {
     if let openDetail {

@@ -184,10 +184,6 @@ import XCTest
     ready()
     focus(cards().firstMatch)
     screenshot("01-iwara-grid")
-    let visibleRows = app.otherElements.matching(
-      NSPredicate(format: "identifier BEGINSWITH 'entry.'")
-    ).allElementsBoundByIndex.filter { $0.frame.minY >= 0 && $0.frame.maxY <= 1080 }
-    XCTAssertGreaterThanOrEqual(visibleRows.count, 8, "Two complete landscape rows expected")
     select(app.buttons["chip.trending"])
     let requests = metric("requests")
     remote.press(.right)
@@ -502,6 +498,8 @@ import XCTest
     select(app.buttons["chip.裏番"])
     ready()
     let first = cards().firstMatch
+    XCTAssertEqual(first.frame.width, 320, accuracy: 1)
+    XCTAssertEqual(first.frame.height, 480, accuracy: 1)
     XCTAssertEqual(first.frame.height / first.frame.width, 1.5, accuracy: 0.02)
     focus(first)
     screenshot("28-hanime-portrait-grid")
@@ -570,25 +568,26 @@ import XCTest
     wait("Dismissed panel must restore canvas input") { page.label.hasPrefix("4 /") }
   }
 
-  func testFocusedGridTitlesAndTwoRows() {
+  func testFocusedGridTitlesAndAspectRatios() {
     launch()
-    for (name, chip, columns) in [("iwara", "trending", 4), ("Hanime1", "裏番", 5), ("漫画", "", 5)] {
+    for (name, chip, columns, ratio) in [
+      ("iwara", "trending", 4, CGFloat(16) / 9),
+      ("Hanime1", "裏番", 5, CGFloat(2) / 3),
+      ("漫画", "", 5, CGFloat(3) / 4),
+    ] {
       if name != "iwara" { tab(name) }
       ready(name == "漫画")
       select(app.buttons["chip." + chip])
       ready(name == "漫画")
       let items = cards(name == "漫画").allElementsBoundByIndex
       XCTAssertGreaterThanOrEqual(items.count, columns * 2)
-      focus(items[0])
-      let viewport = app.scrollViews["browse.grid"].frame
-      let firstTwoRows = Array(items.prefix(columns * 2))
-      for card in firstTwoRows {
-        let id = card.identifier.components(separatedBy: ".card.")[1]
-        let cell = app.otherElements["entry." + id].frame
-        XCTAssertGreaterThanOrEqual(cell.minY, viewport.minY)
-        XCTAssertLessThanOrEqual(cell.maxY, viewport.maxY, "Two complete rows must fit: \(name)")
-      }
-      for card in [firstTwoRows[0], firstTwoRows[columns]] {
+      let first = items[0]
+      let firstID = first.identifier.components(separatedBy: ".card.")[1]
+      XCTAssertEqual(first.frame.width, columns == 4 ? 404 : 320, accuracy: 1)
+      XCTAssertEqual(first.frame.width / first.frame.height, ratio, accuracy: 0.01)
+      XCTAssertEqual(
+        first.frame.minX, app.staticTexts["entry.title." + firstID].frame.minX, accuracy: 1)
+      for card in [first, items[columns]] {
         focus(card)
         let id = card.identifier.components(separatedBy: ".card.")[1]
         let title = app.staticTexts["entry.title." + id]
@@ -596,7 +595,11 @@ import XCTest
         wait("Focused cover and title must not intersect") {
           !card.frame.intersects(title.frame) && card.frame.maxY <= title.frame.minY
         }
-        print("CARD_TITLE \(name) cover=\(card.frame) title=\(title.frame)")
+        XCTAssertTrue(card.hasFocus)
+        XCTAssertEqual(card.frame.width / card.frame.height, ratio, accuracy: 0.01)
+        print(
+          "CARD_TITLE \(name) cover=\(card.frame) title=\(title.frame) gap=\(title.frame.minY - card.frame.maxY)"
+        )
       }
     }
   }

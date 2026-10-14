@@ -44,3 +44,9 @@
 - Device frame evidence: focused portrait covers end at y=486.5 and titles start at y=498.5 (12pt clear gap); second-row equivalents end at 874/start at 886. Landscape has about 21.8pt clear gap. Both full rows passed viewport bounds.
 - Real page 6/7 spread includes different aspect ratios: rendered left image (0,102.5,583.5,875), right (583.5,102.5,1336.5,875). Their shared edge matches exactly, heights match, and union is centered. LTR page 2/3 also passed.
 - XCTest's action log contains frame prints; the console log is unavailable for this device result. No image attachments were opened.
+# Full-width grid correction (2026-10-14)
+
+- Coordinator withdrew the two-complete-rows constraint: restore full column width and original 16:9 / 2:3 / 3:4 cover proportions, with left edges aligned to titles.
+- Removed viewport-height sizing and its dedicated constants, retaining 32pt cover/title clearance and native card focus effect. Reader code remains unchanged.
+- Fetched current device focus trace before editing: artifacts/FocusTrace-before-grid-restore.txt. No images opened.
+- Full-size focused frame checks passed in the first and second rows: landscape 444x249.48–250.02pt, gap 20.74–20.76pt; Hanime1 portrait 346.67x520pt, gap 12pt; comic 349.98–350.01x466.5–467pt, gap 12pt. Half-point layout rounding accounts for the small row-to-row differences. Native .card scaling remains unchanged.

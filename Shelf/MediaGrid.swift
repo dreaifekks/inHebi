@@ -36,7 +36,6 @@ struct MediaEntry: Identifiable {
 struct MediaGrid<Destination: View>: View {
   let entries: [MediaEntry]
   let width: CGFloat
-  let viewportHeight: CGFloat
   let portrait: Bool
   var comic = false
   var referer: String?
@@ -51,14 +50,7 @@ struct MediaGrid<Destination: View>: View {
   private var spacing: CGFloat { portrait ? ShelfLayout.portraitSpacing : ShelfLayout.videoSpacing }
   private var cardWidth: CGFloat { (width - CGFloat(columns - 1) * spacing) / CGFloat(columns) }
   private var imageHeight: CGFloat {
-    let naturalHeight = portrait ? cardWidth * (comic ? 4 / 3 : 1.5) : cardWidth * 9 / 16
-    let twoRowHeight =
-      (viewportHeight - 2 * ShelfLayout.gridEdgeSpacing - ShelfLayout.rowSpacing) / 2
-    return min(
-      naturalHeight, twoRowHeight - ShelfLayout.cardTextHeight - ShelfLayout.coverTitleSpacing)
-  }
-  private var imageWidth: CGFloat {
-    portrait ? imageHeight / (comic ? 4 / 3 : 1.5) : cardWidth
+    portrait ? cardWidth * (comic ? 4 / 3 : 1.5) : cardWidth * 9 / 16
   }
   var body: some View {
     LazyVGrid(
@@ -66,7 +58,7 @@ struct MediaGrid<Destination: View>: View {
       spacing: ShelfLayout.rowSpacing
     ) {
       ForEach(Array(entries.enumerated()), id: \.element.id) { index, entry in
-        VStack(alignment: .center, spacing: ShelfLayout.coverTitleSpacing) {
+        VStack(alignment: .leading, spacing: ShelfLayout.coverTitleSpacing) {
           NavigationLink {
             destination(entry.id)
           } label: {
@@ -78,7 +70,7 @@ struct MediaGrid<Destination: View>: View {
                   if loaded { loadedCovers.insert(entry.id) } else { loadedCovers.remove(entry.id) }
                 }
               )
-              .frame(width: imageWidth, height: imageHeight).clipShape(
+              .frame(width: cardWidth, height: imageHeight).clipShape(
                 RoundedRectangle(cornerRadius: ShelfLayout.cardRadius))
               if preparing == entry.id {
                 Text(comic ? "正在打开…" : "准备播放…").font(ShelfLayout.captionFont).padding(10)

@@ -60,7 +60,7 @@ struct BrowseList<Destination: View, Search: View>: View {
         }
         ScrollView {
           VStack(spacing: 0) {
-            Color.clear.frame(height: ShelfLayout.gridEdgeSpacing)
+            Color.clear.frame(height: 20)
             if entries.isEmpty {
               if loading {
                 ProgressView("加载中…").frame(height: 500)
@@ -72,7 +72,6 @@ struct BrowseList<Destination: View, Search: View>: View {
             }
             MediaGrid(
               entries: entries, width: geometry.size.width - 2 * ShelfLayout.horizontalInset,
-              viewportHeight: geometry.size.height - (hasBar ? ShelfLayout.filterHeight : 0),
               portrait: portrait, comic: comic, referer: referer, focus: $controlFocus,
               preparing: preparing, quickError: quickError, failedID: failedID,
               destination: destination, quick: quick)

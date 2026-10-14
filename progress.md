@@ -266,3 +266,12 @@ Read README and HANDOFF completely; worktree initially clean at b27311c. Retriev
 - Device process check after teardown: Shelf is not running. No video playback exercised and no raw screenshots opened.
 - Final `./script/verify.sh` after the button identifier change passed: offline 28 passed / 3 skipped, generic tvOS Simulator build succeeded (artifacts/reader-final-verify.log). `git diff --check` passed.
 - Normal signed release handoff is build 16, using the newer local AuthKey and the README signing environment variables. Install receipt: artifacts/reader-install.log. Read-only Claude cross-review is the next step after commit/install; its conclusion will be forwarded unchanged to the coordinator.
+# Full-width grid correction — 2026-10-14
+
+Starting from 7fe24be/build 16 with a clean worktree. Reviewer reported no blockers; coordinator requested restoring full-size grid covers and withdrew the two-complete-rows constraint. Reader implementation stays unchanged. Current device focus trace fetched before edits. Core/verify and affected grid device tests will be recorded below; a new commit and normal signed installation are required, without another reviewer.
+
+- `swift test --package-path Packages/ShelfCore`: 28 passed / 3 live tests skipped / 0 failures (artifacts/grid-restore-core-offline.log).
+- `./script/verify.sh`: offline 28 passed / 3 skipped / 0 failures and generic tvOS Simulator build succeeded (artifacts/grid-restore-verify.log).
+- Running only five affected device tests: focused cover ratios/title clearance, Hanime portrait size, media grid filters/search, single-update strip entry, directional grid rows. No reader or playback tests rerun.
+- Final device result: 5 passed / 0 failed in 332.2s, artifacts/grid-restore-device.log. First/second-row focused frames: landscape 444x249.48–250.02pt with 20.74–20.76pt title clearance; Hanime1 346.67x520pt with 12pt; comic 349.98–350.01x466.5–467pt with 12pt. Original ratios, full column widths and unfocused left-edge alignment all passed.
+- `git diff --exit-code 7fe24be -- Shelf/ReaderView.swift Shelf/RemoteImage.swift Packages/ShelfCore` confirmed no reader/core changes. No raw images opened. New-commit signed installation handoff: build 17, receipt artifacts/grid-restore-install.log; no further reviewer requested.

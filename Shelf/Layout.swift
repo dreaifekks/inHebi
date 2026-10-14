@@ -9,8 +9,6 @@ enum ShelfLayout {
   static let portraitSpacing: CGFloat = 40
   static let rowSpacing: CGFloat = 40
   static let coverTitleSpacing: CGFloat = 32
-  static let gridEdgeSpacing: CGFloat = 24
-  static let cardTextHeight: CGFloat = 110
   static let chipWidth: CGFloat = 160
   static let chipSpacing: CGFloat = 24
   static let filterHeight: CGFloat = 80
